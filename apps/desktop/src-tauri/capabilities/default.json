@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Phase 1 minimum capability for the main desktop window",
+  "windows": ["main"],
+  "permissions": [
+    "core:default"
+  ]
+}

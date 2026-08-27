@@ -1,0 +1,30 @@
+{
+  "name": "torlink-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "中文优先的开源 BitTorrent 搜索与下载桌面客户端",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build:shared": "npm run build --workspace @torlink/protocol && npm run build --workspace @torlink/i18n",
+    "dev": "npm run build:shared && npm run dev --workspace @torlink/desktop",
+    "tauri": "npm run build:shared && npm run tauri --workspace @torlink/desktop --",
+    "typecheck": "npm run typecheck --workspace @torlink/protocol && npm run typecheck --workspace @torlink/i18n && npm run typecheck --workspace @torlink/core && npm run typecheck --workspace @torlink/desktop",
+    "test": "npm run build:shared && npm run test --workspace @torlink/protocol && npm run test --workspace @torlink/i18n && npm run test --workspace @torlink/core && npm run test --workspace @torlink/desktop",
+    "build": "npm run build --workspace @torlink/protocol && npm run build --workspace @torlink/i18n && npm run build --workspace @torlink/core && npm run build --workspace @torlink/desktop",
+    "check:rust": "cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml",
+    "check": "npm run typecheck && npm test && npm run build && npm run check:rust",
+    "audit:prod": "npm audit --omit=dev"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
+  }
+}
