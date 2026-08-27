@@ -92,5 +92,6 @@
 - 单元/UI 测试：PASS（10/10）。
 - protocol、i18n、core 与 Vite production build：PASS。
 - Tauri Rust `cargo check`：PASS。
+- Tauri desktop debug production-path build（无 bundle）：PASS。
 - npm audit：0 vulnerabilities。
 - 本地 UI smoke 与 780×560 响应式检查：PASS；控制台无 warning/error。

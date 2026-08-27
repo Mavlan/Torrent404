@@ -45,6 +45,7 @@
 - `npm test`：PASS，4 个测试文件、10 个测试。
 - `npm run build`：PASS；Vite 生产 bundle 约 202 kB JS（gzip 约 64 kB）。
 - `cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml`：PASS。
+- `tauri build --debug --no-bundle`：PASS，生成本地 Windows 可执行文件。
 - `npm audit`：PASS，0 vulnerabilities。
 - 本地浏览器 smoke：搜索提交、页面导航、关于页、780×560 窄窗口均正常；控制台无 warning/error。
 
@@ -56,4 +57,3 @@
 
 - 当前图标为 Tauri scaffold 占位图标，Phase 7 替换为独立视觉资产。
 - Phase 2 才引入真实 providers/WebTorrent；Phase 1 搜索提交仅验证 UI 状态。
-
