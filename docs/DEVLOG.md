@@ -103,3 +103,17 @@
 
 - Core typecheck：PASS。
 - `ProviderRegistry.test.ts`：PASS，3 个测试。
+
+## 2026-08-27 — Phase 2.2 Concurrent Search Aggregation
+
+完成：
+
+- 并行消费已注册 providers，任一快速来源可立即流式返回结果。
+- 支持调用方取消与逐 provider 超时，并把 abort 传递到 adapter 边界。
+- 单个 provider 的异常或超时不会中断其他来源，并通过结构化回调报告。
+- 优先使用显式 `infoHash`，同时支持从 magnet `xt` 提取并规范化后去重。
+
+局部验证：
+
+- Core 与 Protocol typecheck：PASS。
+- `SearchAggregator.test.ts`：PASS，5 个测试。

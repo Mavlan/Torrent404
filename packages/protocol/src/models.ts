@@ -16,6 +16,7 @@ export interface SearchResult {
   id: string;
   title: string;
   source: string;
+  infoHash?: string;
   category?: string;
   sizeBytes?: number;
   seeders?: number;
@@ -64,4 +65,3 @@ export interface CoreError {
   detail?: string;
   recoverable: boolean;
 }
-
