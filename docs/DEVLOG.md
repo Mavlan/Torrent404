@@ -57,3 +57,36 @@
 
 - 当前图标为 Tauri scaffold 占位图标，Phase 7 替换为独立视觉资产。
 - Phase 2 才引入真实 providers/WebTorrent；Phase 1 搜索提交仅验证 UI 状态。
+
+## 2026-08-27 — Phase 1.5 WebTorrent Dependency Security Gate
+
+完成：
+
+- 用独立 lock tree 比较精确 `webtorrent@2.4.1` 与 `webtorrent@3.0.21`。
+- 将上游“5 high”还原为 `ip`、`ip-address` 两个实际漏洞包及三个 npm 元漏洞传播节点；记录每条依赖路径、公告、修复版本、bundle 与可达性。
+- 确认新 lock tree 自动升级到已修复的 `ip-address@10.5.0`，剩余根因是没有安全版本的 `ip@2.0.1`。
+- 基于 MIT 上游建立 `bittorrent-tracker@11.2.3` 最小 fork，删除 `ip`，仅替换 UDP tracker server 的 32 位 IPv4 解码；本地 UDP tracker smoke 覆盖该补丁。
+- 采用并精确锁定 `webtorrent@3.0.21`；建立 `TorrentEngine → WebTorrentAdapter` 边界。
+- 锁定 Node 24.20.0 LTS；官方 Windows zip SHA-256 校验通过。
+- 新增完全合法的 4 MiB 自生成 torrent smoke，覆盖 magnet/infohash/Buffer/path、metadata、progress、完成、做种、shutdown 与 restart/restore。
+
+兼容性发现：
+
+- 精确 2.4.1 的宽松 transitive range 会解析到 `uint8-util@2.3.2`，随后在 `_onTorrentId` 崩溃；3.0.21 无此问题。
+- `client.get/remove` 的异步语义与 TorLink 手写类型不一致，已由 adapter 收口。
+- `utp-native` 在完整 shutdown 后保留进程；sidecar 基线固定 `utp:false`，TCP peers、UDP tracker、DHT 与 peer discovery 全部实测通过。
+
+验证：
+
+- production `npm audit --omit=dev`：0 critical、0 high、0 total。
+- WebTorrent 合法真实下载 smoke：PASS。
+- `npm run typecheck`：PASS。
+- `npm test`：PASS，5 个测试文件、13 个测试。
+- `npm run build`：PASS。
+- `cargo check --locked`：PASS。
+- 完整 `npm audit`（含 dev）：0 vulnerabilities。
+
+决定：
+
+- Phase 1.5 安全门槛通过，Phase 2 Core 基线为 `webtorrent@3.0.21` + 最小 tracker fork。
+- Phase 2 业务代码不得直接 import WebTorrent。

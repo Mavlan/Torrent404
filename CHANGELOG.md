@@ -17,3 +17,11 @@
 - Tauri 使用最小 `core:default` capability，未授予 shell、网络或文件系统插件权限。
 - 添加 Windows CI、MIT/第三方 notices、安全策略与贡献指南。
 - Phase 1 typecheck、10 个单元/UI 测试、生产构建、Rust `cargo check` 和 npm audit 全绿。
+
+### Phase 1.5 — WebTorrent Dependency Security Gate
+
+- 对 `webtorrent@2.4.1` 与 `3.0.21` 执行隔离依赖审计、API compatibility diff 和真实 Node torrent smoke。
+- 将原 5 个 High 节点还原到实际 advisory 与完整传递路径。
+- 采用 `webtorrent@3.0.21`，以安全补丁 fork 移除无修复版本的 `ip@2.0.1`，production audit 归零。
+- 新增 `TorrentEngine` / `WebTorrentAdapter` 隔离层，固定 TCP 基线与完整 native shutdown。
+- 将 sidecar Node runtime 锁定为 24.20.0 LTS。

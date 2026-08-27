@@ -9,7 +9,7 @@
     "packages/*"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=24.20.0 <25"
   },
   "scripts": {
     "build:shared": "npm run build --workspace @torlink/protocol && npm run build --workspace @torlink/i18n",
@@ -20,7 +20,8 @@
     "build": "npm run build --workspace @torlink/protocol && npm run build --workspace @torlink/i18n && npm run build --workspace @torlink/core && npm run build --workspace @torlink/desktop",
     "check:rust": "cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml",
     "check": "npm run typecheck && npm test && npm run build && npm run check:rust",
-    "audit:prod": "npm audit --omit=dev"
+    "audit:prod": "npm audit --omit=dev",
+    "smoke:webtorrent": "node scripts/webtorrent-smoke.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",

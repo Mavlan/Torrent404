@@ -18,6 +18,8 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@torlink/protocol": "0.1.0"
+    "@torlink/protocol": "0.1.0",
+    "node-datachannel": "0.32.3",
+    "webtorrent": "3.0.21"
   }
 }
