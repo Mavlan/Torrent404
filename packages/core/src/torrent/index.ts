@@ -6,4 +6,9 @@ export type {
   TorrentSnapshot,
   TorrentSource,
 } from "./TorrentEngine";
+export { TorrentManager } from "./TorrentManager";
+export type {
+  AddDownloadRequest,
+  RemoveDownloadOptions,
+} from "./TorrentManager";
 export { WebTorrentAdapter, type WebTorrentAdapterOptions } from "./WebTorrentAdapter";

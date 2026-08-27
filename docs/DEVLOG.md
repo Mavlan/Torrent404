@@ -171,3 +171,19 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 
 - Core 与 Protocol typecheck：PASS。
 - `DownloadTaskModel.test.ts`：PASS，6 个测试。
+
+## 2026-08-27 — Phase 2.5 TorrentManager
+
+完成：
+
+- 新增只依赖项目自有 `TorrentEngine` 接口的 `TorrentManager`；上层不接触 WebTorrent。
+- 创建任务后严格通过 `DownloadTaskModel` 从 queued 转为 downloading。
+- 映射 metadata 与 snapshot 的进度、速度、下载量、总大小和 ETA（毫秒转秒）。
+- engine completion 映射为 seeding，engine callback/add 失败映射为 error。
+- 提供最小 pause/resume/remove；暂停时记录下载或做种来源以恢复正确状态。
+- 不含持久化、UI、IPC、provider 或真实网络行为。
+
+局部验证：
+
+- Core 与 Protocol typecheck：PASS。
+- `TorrentManager.test.ts`：PASS，6 个测试。

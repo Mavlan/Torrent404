@@ -7,6 +7,6 @@
 3. **首批 provider adapters**：YTS JSON 与 Nyaa RSS 已验证两类 adapter。（完成）
    - **3.1 YTS JSON adapter**：已完成（`401d2d8`）。
    - **3.2 Nyaa RSS adapter**：已完成（`fc21d9b`）。
-4. **任务模型与状态转换**：queued/downloading/paused/completed/seeding/error 及转换约束。（本提交完成）
-5. **TorrentManager**：只依赖 `TorrentEngine`，连接任务状态与 `WebTorrentAdapter`。
+4. **任务模型与状态转换**：queued/downloading/paused/completed/seeding/error 及转换约束。（已完成：`58b92b5`）
+5. **TorrentManager**：只依赖 `TorrentEngine`，连接任务状态与 `WebTorrentAdapter`。（本提交完成）
 6. **Phase 2 完整验收门**：仅在前五步全部完成后运行全量 typecheck/tests、audit、Cargo、Tauri build 和真实 torrent smoke。
