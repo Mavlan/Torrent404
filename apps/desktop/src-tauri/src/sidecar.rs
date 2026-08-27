@@ -1,7 +1,10 @@
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::{
     error::Error,
     fmt,
-    io::{self, BufRead, BufReader, Write},
+    io::{self, BufRead, BufReader, Read, Write},
+    net::{Ipv4Addr, SocketAddrV4, TcpStream},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::mpsc,
@@ -11,10 +14,12 @@ use std::{
 
 const LOOPBACK_HOST: &str = "127.0.0.1";
 const IPC_TRANSPORT: &str = "http";
+const IPC_PROTOCOL_VERSION: u32 = 1;
 const SESSION_TOKEN_ENV: &str = "TORLINK_SESSION_TOKEN";
-const READY_SIGNAL: &str = r#"{"type":"ready","transport":"http","host":"127.0.0.1","port":0,"authentication":"session-token"}"#;
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(3);
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
+const IPC_TIMEOUT: Duration = Duration::from_secs(1);
+const MAX_IPC_RESPONSE_BYTES: u64 = 64 * 1024;
 
 #[derive(Debug, Clone)]
 pub(crate) struct SidecarPaths {
@@ -34,9 +39,15 @@ impl SidecarPaths {
 
 #[derive(Debug, Default)]
 pub(crate) struct SidecarLaunchConfig {
-    /// Reserved for Phase 3.2. It is passed only via the child environment and
-    /// is never included in readiness output or supervisor errors.
+    /// Tests may inject a deterministic value. Normal launches always generate
+    /// a new 256-bit token and pass it only through the child environment.
     pub(crate) session_token: Option<String>,
+}
+
+#[derive(Clone)]
+struct SidecarEndpoint {
+    port: u16,
+    session_token: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,9 +60,13 @@ pub(crate) enum StopOutcome {
 #[derive(Debug)]
 pub(crate) enum SidecarError {
     AlreadyRunning,
+    InvalidSessionToken,
+    RandomToken,
     Spawn(io::Error),
     ReadinessFailed,
     ReadinessTimeout,
+    Ipc(io::Error),
+    IpcProtocol,
     Process(io::Error),
 }
 
@@ -59,9 +74,15 @@ impl fmt::Display for SidecarError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::AlreadyRunning => formatter.write_str("sidecar is already running"),
+            Self::InvalidSessionToken => formatter.write_str("sidecar session token is invalid"),
+            Self::RandomToken => formatter.write_str("failed to create sidecar session token"),
             Self::Spawn(_) => formatter.write_str("failed to start bundled Node sidecar"),
             Self::ReadinessFailed => formatter.write_str("sidecar exited before readiness"),
             Self::ReadinessTimeout => formatter.write_str("sidecar readiness timed out"),
+            Self::Ipc(_) => formatter.write_str("failed to communicate with Node sidecar"),
+            Self::IpcProtocol => {
+                formatter.write_str("Node sidecar returned an invalid IPC response")
+            }
             Self::Process(_) => formatter.write_str("failed to manage sidecar process"),
         }
     }
@@ -70,15 +91,61 @@ impl fmt::Display for SidecarError {
 impl Error for SidecarError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            Self::Spawn(error) | Self::Process(error) => Some(error),
+            Self::Spawn(error) | Self::Ipc(error) | Self::Process(error) => Some(error),
             _ => None,
         }
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Deserialize)]
+struct ReadySignal {
+    #[serde(rename = "type")]
+    message_type: String,
+    transport: String,
+    host: String,
+    port: u16,
+    authentication: String,
+    #[serde(rename = "protocolVersion")]
+    protocol_version: u32,
+}
+
+impl ReadySignal {
+    fn is_valid(&self) -> bool {
+        self.message_type == "ready"
+            && self.transport == IPC_TRANSPORT
+            && self.host == LOOPBACK_HOST
+            && self.port != 0
+            && self.authentication == "session-token"
+            && self.protocol_version == IPC_PROTOCOL_VERSION
+    }
+}
+
+#[derive(Serialize)]
+struct IpcRequest<'a> {
+    #[serde(rename = "protocolVersion")]
+    protocol_version: u32,
+    command: &'a str,
+}
+
+#[derive(Debug, Deserialize)]
+struct IpcResponse {
+    ok: bool,
+    #[serde(rename = "protocolVersion")]
+    protocol_version: u32,
+    command: Option<String>,
+    result: Option<Value>,
+}
+
+#[derive(Debug)]
+struct HttpResponse {
+    status_code: u16,
+    body: Value,
+}
+
+#[derive(Default)]
 pub(crate) struct SidecarSupervisor {
     child: Option<Child>,
+    endpoint: Option<SidecarEndpoint>,
 }
 
 impl SidecarSupervisor {
@@ -91,17 +158,23 @@ impl SidecarSupervisor {
             return Err(SidecarError::AlreadyRunning);
         }
 
+        let session_token = match &config.session_token {
+            Some(token) => token.clone(),
+            None => generate_session_token()?,
+        };
+        if !is_valid_session_token(&session_token) {
+            return Err(SidecarError::InvalidSessionToken);
+        }
+
         let mut command = Command::new(&paths.node);
         command
             .arg(&paths.bootstrap)
             .env("TORLINK_IPC_HOST", LOOPBACK_HOST)
             .env("TORLINK_IPC_TRANSPORT", IPC_TRANSPORT)
+            .env(SESSION_TOKEN_ENV, &session_token)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null());
-        if let Some(token) = &config.session_token {
-            command.env(SESSION_TOKEN_ENV, token);
-        }
 
         #[cfg(target_os = "windows")]
         {
@@ -116,25 +189,75 @@ impl SidecarSupervisor {
             let mut line = String::new();
             let ready = BufReader::new(stdout)
                 .read_line(&mut line)
-                .map(|bytes| bytes > 0 && line.trim() == READY_SIGNAL)
-                .unwrap_or(false);
+                .ok()
+                .filter(|bytes| *bytes > 0)
+                .and_then(|_| serde_json::from_str::<ReadySignal>(line.trim()).ok())
+                .filter(ReadySignal::is_valid);
             let _ = sender.send(ready);
         });
 
-        let readiness = match receiver.recv_timeout(STARTUP_TIMEOUT) {
-            Ok(true) => Ok(()),
-            Ok(false) | Err(mpsc::RecvTimeoutError::Disconnected) => {
-                Err(SidecarError::ReadinessFailed)
+        let ready = match receiver.recv_timeout(STARTUP_TIMEOUT) {
+            Ok(Some(ready)) => ready,
+            Ok(None) | Err(mpsc::RecvTimeoutError::Disconnected) => {
+                let _ = stop_child(&mut child, Duration::from_millis(250));
+                return Err(SidecarError::ReadinessFailed);
             }
-            Err(mpsc::RecvTimeoutError::Timeout) => Err(SidecarError::ReadinessTimeout),
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                let _ = stop_child(&mut child, Duration::from_millis(250));
+                return Err(SidecarError::ReadinessTimeout);
+            }
         };
-        if let Err(error) = readiness {
-            let _ = stop_child(&mut child, Duration::from_millis(250));
-            return Err(error);
+
+        self.endpoint = Some(SidecarEndpoint {
+            port: ready.port,
+            session_token,
+        });
+        self.child = Some(child);
+
+        let ping = self.command("ping");
+        if !matches!(
+            ping,
+            Ok(IpcResponse {
+                ok: true,
+                protocol_version: IPC_PROTOCOL_VERSION,
+                command: Some(ref command),
+                result: Some(ref result),
+            }) if command == "ping" && result.get("reply") == Some(&Value::String("pong".into()))
+        ) {
+            let _ = self.stop();
+            return Err(SidecarError::IpcProtocol);
         }
 
-        self.child = Some(child);
         Ok(())
+    }
+
+    fn command(&self, command: &str) -> Result<IpcResponse, SidecarError> {
+        let endpoint = self.endpoint.as_ref().ok_or(SidecarError::IpcProtocol)?;
+        let body = serde_json::to_string(&IpcRequest {
+            protocol_version: IPC_PROTOCOL_VERSION,
+            command,
+        })
+        .map_err(|_| SidecarError::IpcProtocol)?;
+        let response = send_ipc_request(endpoint, &endpoint.session_token, &body)?;
+        if response.status_code != 200 {
+            return Err(SidecarError::IpcProtocol);
+        }
+        let response: IpcResponse =
+            serde_json::from_value(response.body).map_err(|_| SidecarError::IpcProtocol)?;
+        if !response.ok
+            || response.protocol_version != IPC_PROTOCOL_VERSION
+            || response.command.as_deref() != Some(command)
+        {
+            return Err(SidecarError::IpcProtocol);
+        }
+        Ok(response)
+    }
+
+    #[cfg(test)]
+    fn endpoint(&self) -> Option<(u16, &str)> {
+        self.endpoint
+            .as_ref()
+            .map(|endpoint| (endpoint.port, endpoint.session_token.as_str()))
     }
 
     #[cfg(test)]
@@ -154,6 +277,7 @@ impl SidecarSupervisor {
     }
 
     pub(crate) fn stop(&mut self) -> Result<StopOutcome, SidecarError> {
+        self.endpoint = None;
         let Some(mut child) = self.child.take() else {
             return Ok(StopOutcome::NotRunning);
         };
@@ -165,6 +289,73 @@ impl Drop for SidecarSupervisor {
     fn drop(&mut self) {
         let _ = self.stop();
     }
+}
+
+fn generate_session_token() -> Result<String, SidecarError> {
+    let mut random_bytes = [0_u8; 32];
+    getrandom::fill(&mut random_bytes).map_err(|_| SidecarError::RandomToken)?;
+    let mut token = String::with_capacity(random_bytes.len() * 2);
+    for byte in random_bytes {
+        use fmt::Write as _;
+        write!(&mut token, "{byte:02x}").map_err(|_| SidecarError::RandomToken)?;
+    }
+    Ok(token)
+}
+
+fn is_valid_session_token(token: &str) -> bool {
+    token.len() == 64
+        && token
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn send_ipc_request(
+    endpoint: &SidecarEndpoint,
+    session_token: &str,
+    body: &str,
+) -> Result<HttpResponse, SidecarError> {
+    let address = SocketAddrV4::new(Ipv4Addr::LOCALHOST, endpoint.port);
+    let mut stream =
+        TcpStream::connect_timeout(&address.into(), IPC_TIMEOUT).map_err(SidecarError::Ipc)?;
+    stream
+        .set_read_timeout(Some(IPC_TIMEOUT))
+        .map_err(SidecarError::Ipc)?;
+    stream
+        .set_write_timeout(Some(IPC_TIMEOUT))
+        .map_err(SidecarError::Ipc)?;
+
+    write!(
+        stream,
+        "POST /ipc HTTP/1.1\r\nHost: {LOOPBACK_HOST}:{}\r\nAuthorization: Bearer {session_token}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        endpoint.port,
+        body.len(),
+    )
+    .map_err(SidecarError::Ipc)?;
+    stream.flush().map_err(SidecarError::Ipc)?;
+
+    let mut response_bytes = Vec::new();
+    stream
+        .take(MAX_IPC_RESPONSE_BYTES + 1)
+        .read_to_end(&mut response_bytes)
+        .map_err(SidecarError::Ipc)?;
+    if response_bytes.len() as u64 > MAX_IPC_RESPONSE_BYTES {
+        return Err(SidecarError::IpcProtocol);
+    }
+
+    let response_text =
+        std::str::from_utf8(&response_bytes).map_err(|_| SidecarError::IpcProtocol)?;
+    let (headers, body) = response_text
+        .split_once("\r\n\r\n")
+        .ok_or(SidecarError::IpcProtocol)?;
+    let status_code = headers
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .and_then(|status| status.parse::<u16>().ok())
+        .ok_or(SidecarError::IpcProtocol)?;
+    let body = serde_json::from_str(body).map_err(|_| SidecarError::IpcProtocol)?;
+
+    Ok(HttpResponse { status_code, body })
 }
 
 fn stop_child(child: &mut Child, timeout: Duration) -> io::Result<StopOutcome> {
@@ -207,20 +398,118 @@ mod tests {
         String::from_utf8_lossy(&output.stdout).contains(&format!("\"{process_id}\""))
     }
 
-    #[test]
-    fn starts_ready_and_stops_gracefully() {
+    fn started_supervisor() -> SidecarSupervisor {
         let mut supervisor = SidecarSupervisor::default();
         supervisor
             .start(&test_paths(), &SidecarLaunchConfig::default())
             .expect("sidecar should start");
+        supervisor
+    }
 
+    fn raw_request(supervisor: &SidecarSupervisor, token: &str, body: &str) -> HttpResponse {
+        let (port, _) = supervisor.endpoint().expect("endpoint should exist");
+        send_ipc_request(
+            &SidecarEndpoint {
+                port,
+                session_token: String::new(),
+            },
+            token,
+            body,
+        )
+        .expect("IPC response should be readable")
+    }
+
+    #[test]
+    fn starts_on_random_loopback_port_and_serves_ping_and_health() {
+        let mut supervisor = started_supervisor();
+        let (port, token) = supervisor.endpoint().expect("endpoint should exist");
+
+        assert_ne!(port, 0);
+        assert!(is_valid_session_token(token));
+        let health = supervisor.command("health").expect("health should succeed");
+        assert!(health.ok);
+        assert_eq!(health.protocol_version, IPC_PROTOCOL_VERSION);
+        assert_eq!(health.command.as_deref(), Some("health"));
+        assert_eq!(
+            health
+                .result
+                .and_then(|result| result.get("status").cloned()),
+            Some(Value::String("ok".into()))
+        );
         assert!(supervisor.is_running().expect("status should be readable"));
-        assert!(supervisor.process_id().is_some());
         assert_eq!(
             supervisor.stop().expect("sidecar should stop"),
             StopOutcome::Graceful
         );
-        assert!(!supervisor.is_running().expect("status should be readable"));
+    }
+
+    #[test]
+    fn creates_a_fresh_session_token_for_each_launch() {
+        let mut first = started_supervisor();
+        let first_token = first
+            .endpoint()
+            .expect("endpoint should exist")
+            .1
+            .to_owned();
+        first.stop().expect("first sidecar should stop");
+
+        let mut second = started_supervisor();
+        let second_token = second
+            .endpoint()
+            .expect("endpoint should exist")
+            .1
+            .to_owned();
+        second.stop().expect("second sidecar should stop");
+
+        assert_ne!(first_token, second_token);
+    }
+
+    #[test]
+    fn rejects_missing_and_wrong_tokens_with_structured_errors() {
+        let mut supervisor = started_supervisor();
+        for token in ["", &"0".repeat(64)] {
+            let response = raw_request(
+                &supervisor,
+                token,
+                r#"{"protocolVersion":1,"command":"ping"}"#,
+            );
+            assert_eq!(response.status_code, 401);
+            assert_eq!(response.body["ok"], false);
+            assert_eq!(response.body["error"]["code"], "unauthorized");
+        }
+        supervisor.stop().expect("sidecar should stop");
+    }
+
+    #[test]
+    fn returns_structured_errors_for_version_malformed_and_unknown_requests() {
+        let mut supervisor = started_supervisor();
+        let token = supervisor
+            .endpoint()
+            .expect("endpoint should exist")
+            .1
+            .to_owned();
+        let cases = [
+            (
+                r#"{"protocolVersion":2,"command":"ping"}"#,
+                409,
+                "protocol_version_mismatch",
+            ),
+            ("{", 400, "malformed_request"),
+            (
+                r#"{"protocolVersion":1,"command":"not-a-command"}"#,
+                404,
+                "unknown_command",
+            ),
+        ];
+
+        for (body, status, code) in cases {
+            let response = raw_request(&supervisor, &token, body);
+            assert_eq!(response.status_code, status);
+            assert_eq!(response.body["ok"], false);
+            assert_eq!(response.body["protocolVersion"], IPC_PROTOCOL_VERSION);
+            assert_eq!(response.body["error"]["code"], code);
+        }
+        supervisor.stop().expect("sidecar should stop");
     }
 
     #[test]
@@ -255,6 +544,7 @@ mod tests {
         let status = Command::new(paths.node)
             .arg(paths.bootstrap)
             .env("TORLINK_IPC_HOST", "0.0.0.0")
+            .env(SESSION_TOKEN_ENV, "a".repeat(64))
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -266,10 +556,7 @@ mod tests {
 
     #[test]
     fn stdin_guardian_exits_when_parent_pipe_closes() {
-        let mut supervisor = SidecarSupervisor::default();
-        supervisor
-            .start(&test_paths(), &SidecarLaunchConfig::default())
-            .expect("sidecar should start");
+        let mut supervisor = started_supervisor();
         let child = supervisor.child.as_mut().expect("child should be managed");
         drop(child.stdin.take());
 
@@ -291,10 +578,7 @@ mod tests {
     #[test]
     fn drop_does_not_leave_an_orphan_process() {
         let process_id = {
-            let mut supervisor = SidecarSupervisor::default();
-            supervisor
-                .start(&test_paths(), &SidecarLaunchConfig::default())
-                .expect("sidecar should start");
+            let supervisor = started_supervisor();
             supervisor.process_id().expect("sidecar should have a pid")
         };
 

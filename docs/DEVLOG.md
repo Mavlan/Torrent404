@@ -239,3 +239,27 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 - Desktop typecheck：PASS。
 - `cargo check --locked`：PASS，无 warning。
 - 未运行全量验收、真实 torrent smoke，未进入 Phase 3.2。
+
+## 2026-08-27 — Phase 3.2 Authenticated IPC Transport
+
+完成：
+
+- Node sidecar 仅在 `127.0.0.1` 的操作系统分配随机端口监听，readiness 返回实际端口、
+  transport、鉴权方式和协议版本，但不回显 session token。
+- Rust supervisor 每次启动使用操作系统 CSPRNG 生成 256-bit `TORLINK_SESSION_TOKEN`，
+  仅通过子进程环境传递；正常启动必须先通过鉴权 `ping → pong`。
+- 定义 IPC protocol v1 与 `ping` / `health` 最小 command surface；Rust 客户端同时校验
+  HTTP 状态、响应协议版本、command 与 payload。
+- 所有有效 HTTP IPC 请求先验证 Bearer token；比较采用 constant-time API。
+- malformed JSON/字段、错误或缺失 token、版本不匹配、未知 command 均返回带稳定
+  error code 的 JSON 错误；请求与响应分别限制为 64 KiB。
+- 继续复用 Phase 3.1 stdin `shutdown`、超时强杀、guardian EOF 和 Drop orphan 清理，
+  未引入 SSE/WebSocket 或业务 command。
+
+局部验证：
+
+- Rust authenticated sidecar tests：PASS，9 个测试（随机端口/token、ping/health、
+  鉴权失败、版本/请求/command 错误，以及 Phase 3.1 生命周期回归）。
+- Protocol 与 Desktop typecheck：PASS。
+- `cargo check`：PASS，无 warning。
+- 未运行全量验收、Tauri production bundle、真实 torrent smoke，未进入 Phase 3.3。
