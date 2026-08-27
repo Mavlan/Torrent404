@@ -53,6 +53,21 @@ test("returns results before every provider finishes", async () => {
   assert.ok(completion.events.some((event) => event.type === "search.complete" && !event.cancelled));
 });
 
+test("reports enabled provider capabilities from the current registry", () => {
+  const registry = new ProviderRegistry([
+    provider("movies", async function* () {}, { categories: ["movies"] }),
+    provider("anime", async function* () {}, { categories: ["anime"], enabled: false }),
+  ]);
+  const service = new SearchService(registry, new SearchAggregator(registry));
+
+  assert.deepEqual(service.providers(), {
+    providers: [
+      { providerId: "movies", displayName: "MOVIES", categories: ["movies"], enabled: true },
+      { providerId: "anime", displayName: "ANIME", categories: ["anime"], enabled: false },
+    ],
+  });
+});
+
 test("maps provider errors and timeouts without losing healthy results", async () => {
   const registry = new ProviderRegistry([
     provider("broken", async function* () {

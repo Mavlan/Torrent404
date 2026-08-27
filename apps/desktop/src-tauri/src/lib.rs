@@ -28,6 +28,11 @@ fn search_start(
 }
 
 #[tauri::command]
+fn search_providers(state: State<'_, Mutex<SidecarSupervisor>>) -> Result<Value, String> {
+    use_sidecar(state, SidecarSupervisor::search_providers)
+}
+
+#[tauri::command]
 fn search_poll(
     request_id: String,
     cursor: u64,
@@ -50,6 +55,7 @@ fn search_cancel(
 pub fn run() {
     let app = tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
+            search_providers,
             search_start,
             search_poll,
             search_cancel

@@ -10,6 +10,7 @@ import {
   type DownloadTask,
   type SearchCategory,
   type SearchIpcEvent,
+  type SearchProviderDescriptor,
   type SearchProviderState,
   type SearchProviderStatus,
   type SearchResult,
@@ -51,15 +52,14 @@ const localeLabelKeys: Record<Locale, MessageKey> = {
   "en-US": "settings.languageEn",
 };
 
-const providers: ReadonlyArray<{
-  id: "yts" | "nyaa";
-  displayName: string;
-  categories: readonly SearchCategory[];
-}> = [
-  { id: "yts", displayName: "YTS", categories: ["movies"] },
-  { id: "nyaa", displayName: "Nyaa", categories: ["anime"] },
-] as const;
 const noTasks: DownloadTask[] = [];
+
+function interpolate(template: string, values: Record<string, string | number>): string {
+  return Object.entries(values).reduce(
+    (message, [key, value]) => message.replace(`{${key}}`, String(value)),
+    template,
+  );
+}
 
 function formatBytes(value = 0): string {
   if (value < 1_024) return `${value} B`;
@@ -74,7 +74,7 @@ function formatBytes(value = 0): string {
 }
 
 function providerStateLabel(state: SearchProviderState | undefined, t: Translator): string {
-  if (!state) return t("provider.idle");
+  if (!state) return t("provider.ready");
   const labelKeys: Record<SearchProviderState, MessageKey> = {
     searching: "provider.searching",
     complete: "provider.complete",
@@ -136,6 +136,8 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
   const [theme, setTheme] = useState<"system" | "light" | "dark">("system");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [providerStatuses, setProviderStatuses] = useState<Record<string, SearchProviderStatus>>({});
+  const [providers, setProviders] = useState<SearchProviderDescriptor[]>([]);
+  const [providersLoaded, setProvidersLoaded] = useState(false);
   const [searchState, setSearchState] = useState<"idle" | "searching" | "complete" | "error">("idle");
   const activeSearch = useRef<{ generation: number; requestId: string | null }>({
     generation: 0,
@@ -147,14 +149,35 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
     [locale, page],
   );
   const activeProviders = useMemo(
-    () => providers.filter((provider) => category === "all" || provider.categories.includes(category)),
-    [category],
+    () => providers.filter(
+      (provider) => provider.enabled && (category === "all" || provider.categories.includes(category)),
+    ),
+    [category, providers],
   );
 
   useEffect(() => {
     document.documentElement.lang = locale;
     document.title = translate(locale, "app.name");
   }, [locale]);
+
+  useEffect(() => {
+    let active = true;
+    void searchClient.providers().then(
+      ({ providers: availableProviders }) => {
+        if (!active) return;
+        setProviders(availableProviders);
+        setProvidersLoaded(true);
+      },
+      () => {
+        if (!active) return;
+        setProvidersLoaded(true);
+        setNotice("error.searchUnavailable");
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [searchClient]);
 
   useEffect(() => () => {
     activeSearch.current.generation += 1;
@@ -248,6 +271,7 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!providersLoaded || activeProviders.length === 0) return;
     const value = query.trim();
     if (!value) {
       setNotice("error.queryRequired");
@@ -256,16 +280,30 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
     void runSearch(value);
   };
 
-  const emptyTitle = searchState === "searching"
-    ? t("search.loadingTitle")
-    : searchState === "complete"
-      ? t("search.noResultsTitle")
-      : t("search.emptyTitle");
-  const emptyBody = searchState === "searching"
-    ? t("search.loadingBody")
-    : searchState === "complete"
-      ? t("search.noResultsBody")
-      : t("search.emptyBody");
+  const providerCountFor = (item: SearchCategory): number => providers.filter(
+    (provider) => provider.enabled && (item === "all" || provider.categories.includes(item)),
+  ).length;
+  const providerCountLabel = (count: number): string => count === 0
+    ? t("category.sourceNone")
+    : count === 1
+      ? t("category.sourceOne")
+      : interpolate(t("category.sourceMany"), { count });
+  const categoryName = t(categoryLabelKeys[category]);
+  const hasNoSources = providersLoaded && activeProviders.length === 0;
+  const emptyTitle = hasNoSources
+    ? interpolate(t("search.noSourceTitle"), { category: categoryName })
+    : searchState === "searching"
+      ? t("search.loadingTitle")
+      : searchState === "complete"
+        ? t("search.noResultsTitle")
+        : t("search.emptyTitle");
+  const emptyBody = hasNoSources
+    ? t("search.noSourceBody")
+    : searchState === "searching"
+      ? t("search.loadingBody")
+      : searchState === "complete"
+        ? t("search.noResultsBody")
+        : t("search.emptyBody");
 
   return (
     <div className="app-shell" data-theme={theme} lang={locale}>
@@ -296,7 +334,7 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
           <Icon name="shield" />
           <div><strong>{t("status.localOnly")}</strong><span>{t("status.localOnlyBody")}</span></div>
         </div>
-        <p className="version-label">v0.1.0 · PHASE 3.3.5</p>
+        <p className="version-label">v0.1.0 · PHASE 3.3.6</p>
       </aside>
 
       <main className="workspace">
@@ -327,12 +365,13 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
                   <button
                     aria-pressed={category === item}
                     className={category === item ? "selected" : ""}
+                    data-empty={providersLoaded && providerCountFor(item) === 0 ? "true" : "false"}
                     key={item}
                     onClick={() => selectCategory(item)}
                     type="button"
                   >
                     <span>{t(categoryLabelKeys[item])}</span>
-                    <small>{String(providers.filter((provider) => item === "all" || provider.categories.includes(item)).length).padStart(2, "0")}</small>
+                    <small>· {providersLoaded ? providerCountLabel(providerCountFor(item)) : "…"}</small>
                   </button>
                 ))}
               </div>
@@ -342,19 +381,31 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
                 <label className="sr-only" htmlFor="global-search">{t("search.fieldLabel")}</label>
                 <input id="global-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("search.placeholder")} autoComplete="off" />
                 <kbd>ENTER</kbd>
-                <button type="submit">{t("search.action")}<span aria-hidden="true">↗</span></button>
+                <button disabled={!providersLoaded || activeProviders.length === 0} type="submit">{t("search.action")}<span aria-hidden="true">↗</span></button>
               </form>
 
-              <section className="provider-line" aria-label={t("search.providers")}>
-                <span>{t("search.providers")}</span>
-                <div>{activeProviders.length > 0 ? activeProviders.map((provider) => {
-                  const status = providerStatuses[provider.id];
-                  return (
-                    <b key={provider.id} data-state={status?.state ?? "idle"}>
-                      <i />{provider.displayName}<small>{providerStateLabel(status?.state, t)}</small>
-                    </b>
-                  );
-                }) : <small className="no-providers">{t("search.noProviders")}</small>}</div>
+              <section className="source-panel" aria-label={t("search.sourcesTitle")}>
+                <header>
+                  <div><h2>{t("search.sourcesTitle")}</h2><p>{t("search.sourcesHint")}</p></div>
+                  <strong>{providersLoaded ? providerCountLabel(activeProviders.length) : "…"}</strong>
+                </header>
+                <div className="source-cards">
+                  {!providersLoaded ? <p className="source-message">{t("search.sourcesLoading")}</p> : null}
+                  {providersLoaded && activeProviders.length === 0 ? <p className="source-message">{t("search.noProviders")}</p> : null}
+                  {activeProviders.map((provider) => {
+                    const status = providerStatuses[provider.providerId];
+                    return (
+                      <article className="source-card" data-state={status?.state ?? "ready"} key={provider.providerId}>
+                        <i aria-hidden="true" />
+                        <div>
+                          <strong>{provider.displayName}</strong>
+                          <span>{provider.categories.map((item) => t(categoryLabelKeys[item])).join(" / ")}</span>
+                        </div>
+                        <em>{providerStateLabel(status?.state, t)}</em>
+                      </article>
+                    );
+                  })}
+                </div>
               </section>
 
               {searchResults.length > 0 ? (
@@ -376,9 +427,9 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
                 </section>
               ) : (
                 <section className="empty-stage search-empty" aria-labelledby="search-empty-title">
-                  <div className="empty-index">00</div>
+                  <div className="empty-index">{hasNoSources ? "—" : "00"}</div>
                   <div>
-                    <p className="section-kicker">{searchState === "searching" ? t("search.searchingKicker") : t("search.waitingKicker")}</p>
+                    <p className="section-kicker">{hasNoSources ? t("search.sourcesTitle") : searchState === "searching" ? t("search.searchingKicker") : t("search.waitingKicker")}</p>
                     <h2 id="search-empty-title">{emptyTitle}</h2>
                     <p>{emptyBody}</p>
                   </div>
@@ -412,6 +463,22 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
                   <div className="setting-icon"><Icon name="folder" /></div>
                   <div><p className="section-kicker">{t("settings.downloadKicker")}</p><h2>{t("settings.downloadTitle")}</h2><p>{t("settings.downloadBody")}</p><code>C:\Users\…\Downloads\涌流404</code></div>
                   <button type="button" onClick={() => setNotice("settings.changePending")}>{t("settings.change")}</button>
+                </section>
+                <section className="setting-panel source-settings-panel">
+                  <div>
+                    <p className="section-kicker">{t("settings.sourcesKicker")}</p>
+                    <h2>{t("settings.sourcesTitle")}</h2>
+                    <p>{t("settings.sourcesBody")}</p>
+                  </div>
+                  <div className="settings-source-list">
+                    {!providersLoaded ? <span>{t("search.sourcesLoading")}</span> : null}
+                    {providers.map((provider) => (
+                      <article key={provider.providerId}>
+                        <div><strong>{provider.displayName}</strong><small>{provider.categories.map((item) => t(categoryLabelKeys[item])).join(" / ")}</small></div>
+                        <span>{t("settings.sourceBuiltIn")} · {t(provider.enabled ? "settings.sourceEnabled" : "settings.sourceDisabled")}</span>
+                      </article>
+                    ))}
+                  </div>
                 </section>
                 <section className="setting-panel theme-panel">
                   <div><p className="section-kicker">{t("settings.appearanceKicker")}</p><h2>{t("settings.appearanceTitle")}</h2><p>{t("settings.appearanceBody")}</p></div>

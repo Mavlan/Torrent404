@@ -121,6 +121,16 @@ function handleCommand(response, request) {
   }
 
   try {
+    if (request.command === "search.providers") {
+      sendJson(response, 200, {
+        ok: true,
+        protocolVersion: IPC_PROTOCOL_VERSION,
+        command: "search.providers",
+        result: searchService.providers(),
+      });
+      return;
+    }
+
     if (request.command === "search.start") {
       sendJson(response, 200, {
         ok: true,

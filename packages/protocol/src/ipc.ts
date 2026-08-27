@@ -5,6 +5,7 @@ export const IPC_PROTOCOL_VERSION = 1 as const;
 export const IPC_COMMANDS = [
   "ping",
   "health",
+  "search.providers",
   "search.start",
   "search.poll",
   "search.cancel",
@@ -32,6 +33,13 @@ export interface SearchStartRequest extends IpcRequest {
   requestId: string;
   query: string;
   category: SearchCategory;
+}
+
+export interface SearchProviderDescriptor {
+  providerId: string;
+  displayName: string;
+  categories: readonly SearchCategory[];
+  enabled: boolean;
 }
 
 export interface SearchPollRequest extends IpcRequest {
@@ -112,6 +120,15 @@ export interface SearchStartResponse {
   };
 }
 
+export interface SearchProvidersResponse {
+  ok: true;
+  protocolVersion: typeof IPC_PROTOCOL_VERSION;
+  command: "search.providers";
+  result: {
+    providers: SearchProviderDescriptor[];
+  };
+}
+
 export interface SearchPollResponse {
   ok: true;
   protocolVersion: typeof IPC_PROTOCOL_VERSION;
@@ -138,6 +155,7 @@ export type IpcResponse =
   | IpcErrorResponse
   | PingResponse
   | HealthResponse
+  | SearchProvidersResponse
   | SearchStartResponse
   | SearchPollResponse
   | SearchCancelResponse;

@@ -344,3 +344,31 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 - Protocol/i18n/Core/Desktop typecheck：PASS；Rust sidecar tests：11 PASS；
   `cargo check --locked`：PASS。
 - 未进入 Phase 3.4，未接下载，未修改 TorrentManager/WebTorrentAdapter，未运行完整验收。
+
+## 2026-08-28 — Phase 3.3.6 Source Clarity UX
+
+完成：
+
+- IPC v1 新增只读 `search.providers` command，Desktop 通过既有 session token 从 sidecar
+  的实际 `ProviderRegistry` 获取 source ID、display name、categories、enabled；分类来源数
+  不再由 UI 硬编码。
+- 六个分类改为人类可读的中英文来源数量；零来源分类保持可点击但视觉弱化，搜索按钮禁用，
+  不创建搜索 request，并按当前分类显示动态空状态。
+- 将原有小字来源矩阵改为可读状态卡，明确展示“搜索来源”、YTS/电影、Nyaa/动漫及
+  Ready/Searching/Complete/Timeout/Error 等运行状态。
+- 设置页新增只读的内置搜索来源区域，显示 YTS、Nyaa、分类和启用状态；本步骤未扩大为
+  provider 管理或持久化开关。
+- 补充 protocol、sidecar service、Rust authenticated IPC 与 Desktop UI 回归测试，覆盖
+  descriptor 读取、实际来源计数、无来源短路、英文复数文案及设置页来源展示。
+
+局部验证：
+
+- i18n tests：2 PASS；Protocol IPC tests：2 PASS；sidecar search service tests：6 PASS。
+- Desktop App tests：9 PASS；Rust authenticated sidecar tests：11 PASS。
+- Protocol/i18n/Core/Desktop typecheck：PASS；`cargo check --locked`：PASS。
+- 真实 `npm run tauri dev`：中英文六分类来源文案、TV 无来源空状态和禁用搜索、设置页
+  YTS/Nyaa 来源信息及语言即时切换均正常；All 分类真实搜索由 Nyaa 返回 75 条结果，YTS
+  错误被隔离，状态卡正确显示 Complete/Error。
+- 关闭窗口后 `tauri dev` exit code 0，未发现 `torlink-desktop.exe` 或 sidecar
+  `bootstrap.mjs` 遗留进程。
+- 未新增 provider，未进入 Phase 3.4，未运行 production bundle、完整验收或 torrent smoke。

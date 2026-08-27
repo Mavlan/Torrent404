@@ -9,6 +9,7 @@ describe("authenticated IPC protocol", () => {
     expect(IPC_COMMANDS).toEqual([
       "ping",
       "health",
+      "search.providers",
       "search.start",
       "search.poll",
       "search.cancel",

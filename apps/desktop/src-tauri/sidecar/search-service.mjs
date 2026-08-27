@@ -25,6 +25,17 @@ export class SearchService {
     );
   }
 
+  providers() {
+    return {
+      providers: [...this.#providers.values()].map((provider) => ({
+        providerId: provider.id,
+        displayName: provider.displayName,
+        categories: [...provider.categories],
+        enabled: provider.enabled,
+      })),
+    };
+  }
+
   start(requestId, query, category = "all") {
     const normalizedQuery = typeof query === "string" ? query.trim() : "";
     if (

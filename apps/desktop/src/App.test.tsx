@@ -4,30 +4,55 @@ import { describe, expect, it, vi } from "vitest";
 import App from "./App";
 import type { SearchClient } from "./searchClient";
 
+const providerResult = {
+  providers: [
+    { providerId: "yts", displayName: "YTS", categories: ["movies"], enabled: true },
+    { providerId: "nyaa", displayName: "Nyaa", categories: ["anime"], enabled: true },
+  ],
+} as const;
+
+function shellClient(): SearchClient {
+  return {
+    providers: vi.fn().mockResolvedValue(providerResult),
+    start: vi.fn().mockRejectedValue(new Error("search not expected")),
+    poll: vi.fn().mockRejectedValue(new Error("poll not expected")),
+    cancel: vi.fn().mockResolvedValue({ requestId: "none", cancelled: false }),
+  };
+}
+
 describe("desktop shell", () => {
-  it("renders the Chinese-first search surface", () => {
-    render(<App />);
+  it("renders human-readable category counts from provider descriptors", async () => {
+    render(<App searchClient={shellClient()} />);
     expect(screen.getByText("涌流404")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /从一个入口/ })).toBeInTheDocument();
     expect(screen.getByText("搜索电影、剧集、动漫、游戏和其他 Torrent 资源")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("输入关键词、Magnet 或 infohash")).toBeInTheDocument();
     expect(screen.getByText("无中央代理服务")).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "搜索分类" })).toBeInTheDocument();
-    for (const category of ["全部", "电影", "剧集", "动漫", "游戏", "软件"]) {
-      expect(screen.getByRole("button", { name: new RegExp(category) })).toBeInTheDocument();
+    for (const label of [
+      /全部.*2 来源/,
+      /电影.*1 来源/,
+      /剧集.*暂无/,
+      /动漫.*1 来源/,
+      /游戏.*暂无/,
+      /软件.*暂无/,
+    ]) {
+      expect(await screen.findByRole("button", { name: label })).toBeInTheDocument();
     }
+    expect(screen.getByRole("region", { name: "搜索来源" })).toBeInTheDocument();
+    expect(screen.getAllByText("就绪")).toHaveLength(2);
   });
 
   it("navigates to downloads and shows its empty state", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(<App searchClient={shellClient()} />);
     await user.click(screen.getByRole("button", { name: /下载中/ }));
     expect(screen.getByRole("heading", { name: "下载队列安静待命" })).toBeInTheDocument();
   });
 
   it("states the privacy boundary in About", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(<App searchClient={shellClient()} />);
     await user.click(screen.getByRole("button", { name: "关于" }));
     expect(screen.getByRole("heading", { name: "关于涌流404" })).toBeInTheDocument();
     expect(screen.getByText(/peers 可以看到你的公网 IP/)).toBeInTheDocument();
@@ -36,7 +61,7 @@ describe("desktop shell", () => {
 
   it("switches the complete shell to English without restarting", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(<App searchClient={shellClient()} />);
 
     await user.click(screen.getByRole("button", { name: "设置" }));
     await user.click(screen.getByRole("button", { name: "English" }));
@@ -47,14 +72,43 @@ describe("desktop shell", () => {
     await user.click(screen.getByRole("button", { name: "Search" }));
     expect(screen.getByText("Search movies, TV, anime, games and other torrents")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Movies/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /TV.*None/ })).toBeInTheDocument();
+    expect(screen.getAllByText("Ready")).toHaveLength(2);
     const searchButtons = screen.getAllByRole("button", { name: "Search" });
     await user.click(searchButtons.at(-1)!);
     expect(screen.getByText("Enter keywords, a magnet, or an infohash first.")).toBeInTheDocument();
   });
 
+  it("shows a category-specific empty state and never searches without sources", async () => {
+    const client = shellClient();
+    const user = userEvent.setup();
+    render(<App searchClient={client} />);
+
+    await user.click(await screen.findByRole("button", { name: /剧集.*暂无/ }));
+
+    expect(screen.getByRole("heading", { name: "当前暂无剧集搜索来源" })).toBeInTheDocument();
+    expect(screen.getByText("更多搜索来源将在后续版本加入。")).toBeInTheDocument();
+    const searchButton = screen.getByRole("button", { name: /^开始搜索/ });
+    expect(searchButton).toBeDisabled();
+    await user.click(searchButton);
+    expect(client.start).not.toHaveBeenCalled();
+  });
+
+  it("shows current built-in sources in Settings without management controls", async () => {
+    const user = userEvent.setup();
+    render(<App searchClient={shellClient()} />);
+
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    expect(await screen.findByRole("heading", { name: "内置搜索来源" })).toBeInTheDocument();
+    expect(screen.getByText("YTS")).toBeInTheDocument();
+    expect(screen.getByText("Nyaa")).toBeInTheDocument();
+    expect(screen.getAllByText("内置 · 已启用")).toHaveLength(2);
+  });
+
   it("renders YTS and Nyaa results incrementally from IPC", async () => {
     const requestId = "search-ui-results";
     const client: SearchClient = {
+      providers: vi.fn().mockResolvedValue(providerResult),
       start: vi.fn().mockResolvedValue({ requestId }),
       poll: vi.fn()
         .mockResolvedValueOnce({
@@ -131,6 +185,7 @@ describe("desktop shell", () => {
       finishOldPoll = resolve;
     });
     const client: SearchClient = {
+      providers: vi.fn().mockResolvedValue(providerResult),
       start: vi.fn()
         .mockResolvedValueOnce({ requestId: "search-old" })
         .mockResolvedValueOnce({ requestId: "search-new" }),
@@ -163,6 +218,7 @@ describe("desktop shell", () => {
   it("passes the selected category to authenticated search IPC", async () => {
     const requestId = "search-movies";
     const client: SearchClient = {
+      providers: vi.fn().mockResolvedValue(providerResult),
       start: vi.fn().mockResolvedValue({ requestId }),
       poll: vi.fn().mockResolvedValue({
         requestId,

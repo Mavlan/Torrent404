@@ -306,6 +306,12 @@ impl SidecarSupervisor {
         .ok_or(SidecarError::IpcProtocol)
     }
 
+    pub(crate) fn search_providers(&self) -> Result<Value, SidecarError> {
+        self.command("search.providers", json!({}))?
+            .result
+            .ok_or(SidecarError::IpcProtocol)
+    }
+
     pub(crate) fn poll_search(&self, request_id: &str, cursor: u64) -> Result<Value, SidecarError> {
         self.command(
             "search.poll",
@@ -621,6 +627,13 @@ mod tests {
             nyaa_fixture: Some(search_fixture("nyaa-normal.xml")),
         };
         let mut supervisor = started_supervisor_with_config(&config);
+        let providers = supervisor
+            .search_providers()
+            .expect("provider descriptors should load");
+        assert_eq!(providers["providers"][0]["providerId"], "yts");
+        assert_eq!(providers["providers"][0]["categories"][0], "movies");
+        assert_eq!(providers["providers"][1]["providerId"], "nyaa");
+        assert_eq!(providers["providers"][1]["categories"][0], "anime");
         let started = supervisor
             .start_search("legal fixture", "all")
             .expect("search should start");
