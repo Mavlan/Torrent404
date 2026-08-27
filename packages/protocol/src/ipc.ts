@@ -1,4 +1,4 @@
-import type { SearchResult } from "./models";
+import type { SearchCategory, SearchResult } from "./models";
 
 export const IPC_PROTOCOL_VERSION = 1 as const;
 
@@ -31,6 +31,7 @@ export interface SearchStartRequest extends IpcRequest {
   command: "search.start";
   requestId: string;
   query: string;
+  category: SearchCategory;
 }
 
 export interface SearchPollRequest extends IpcRequest {

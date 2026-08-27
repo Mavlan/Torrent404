@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "涌流",
+  "productName": "涌流404",
   "version": "0.1.0",
   "identifier": "io.github.torlinkdesktop.desktop",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "涌流",
+        "title": "涌流404",
         "width": 1180,
         "height": 760,
         "minWidth": 780,
@@ -29,6 +29,8 @@
   "bundle": {
     "active": true,
     "targets": ["nsis", "msi"],
+    "shortDescription": "涌流404：本地 Torrent 搜索与下载客户端",
+    "longDescription": "涌流404 是中文优先、在本机运行的 Torrent 搜索与下载桌面客户端。",
     "resources": {
       "sidecar/node.exe": "sidecar/node.exe",
       "sidecar/bootstrap.mjs": "sidecar/bootstrap.mjs",

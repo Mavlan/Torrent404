@@ -2,6 +2,7 @@ const REQUEST_ID = /^[A-Za-z0-9:_-]{1,128}$/;
 const MAX_QUERY_LENGTH = 500;
 const MAX_POLL_EVENTS = 25;
 const COMPLETED_SESSION_TTL_MS = 60_000;
+const SEARCH_CATEGORIES = new Set(["all", "movies", "tv", "anime", "games", "software"]);
 
 export class SearchCommandError extends Error {
   constructor(code, message, statusCode) {
@@ -24,9 +25,14 @@ export class SearchService {
     );
   }
 
-  start(requestId, query) {
+  start(requestId, query, category = "all") {
     const normalizedQuery = typeof query === "string" ? query.trim() : "";
-    if (!REQUEST_ID.test(requestId ?? "") || normalizedQuery.length === 0 || normalizedQuery.length > MAX_QUERY_LENGTH) {
+    if (
+      !REQUEST_ID.test(requestId ?? "")
+      || normalizedQuery.length === 0
+      || normalizedQuery.length > MAX_QUERY_LENGTH
+      || !SEARCH_CATEGORIES.has(category)
+    ) {
       throw new SearchCommandError(
         "invalid_search_request",
         "Search request ID or query is invalid",
@@ -41,9 +47,13 @@ export class SearchService {
       );
     }
 
+    const providerIds = [...this.#providers.values()]
+      .filter((provider) => provider.enabled && (category === "all" || provider.categories.includes(category)))
+      .map(({ id }) => id);
     const controller = new AbortController();
     const session = {
       requestId,
+      providerIds,
       controller,
       events: [],
       statuses: new Map(),
@@ -53,8 +63,8 @@ export class SearchService {
     };
     this.#sessions.set(requestId, session);
 
-    for (const provider of this.#providers.values()) {
-      this.#setProviderStatus(session, provider.id, "searching");
+    for (const providerId of providerIds) {
+      this.#setProviderStatus(session, providerId, "searching");
     }
     void this.#run(session, normalizedQuery);
 
@@ -86,7 +96,7 @@ export class SearchService {
     const cancelled = !session.done && !session.cancelled;
     if (cancelled) {
       session.cancelled = true;
-      for (const providerId of this.#providers.keys()) {
+      for (const providerId of session.providerIds) {
         if (session.statuses.get(providerId)?.state === "searching") {
           this.#setProviderStatus(session, providerId, "cancelled");
         }
@@ -146,6 +156,7 @@ export class SearchService {
     try {
       const results = this.#aggregator.search(query, {
         signal: session.controller.signal,
+        providerIds: session.providerIds,
         onProviderFailure: ({ providerId, code }) => {
           const timedOut = code === "timeout";
           this.#setProviderStatus(
@@ -184,7 +195,7 @@ export class SearchService {
         });
       }
     } finally {
-      for (const providerId of this.#providers.keys()) {
+      for (const providerId of session.providerIds) {
         if (session.statuses.get(providerId)?.state === "searching") {
           this.#setProviderStatus(
             session,

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { downloadStatuses, themes } from "./models";
+import { downloadStatuses, searchCategories, themes } from "./models";
 import { PROTOCOL_VERSION } from "./messages";
 
 const nonEmpty = z.string().trim().min(1);
@@ -38,7 +38,7 @@ export const downloadTaskSchema = z.object({
 export const settingsSchema = z.object({
   schemaVersion: z.number().int().positive(),
   downloadDir: nonEmpty,
-  language: z.literal("zh-CN"),
+  language: z.enum(["zh-CN", "en-US"]),
   theme: z.enum(themes),
   providerEnabled: z.record(z.string(), z.boolean()),
 });
@@ -56,7 +56,12 @@ const requestId = nonEmpty.max(128);
 const taskId = nonEmpty.max(256);
 
 export const coreCommandSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("search"), requestId, query: z.string().trim().max(500) }),
+  z.object({
+    type: z.literal("search"),
+    requestId,
+    query: z.string().trim().max(500),
+    category: z.enum(searchCategories).optional(),
+  }),
   z.object({ type: z.literal("addMagnet"), requestId, magnet: nonEmpty.max(16_384), savePath: nonEmpty.optional() }),
   z.object({ type: z.literal("addTorrentFile"), requestId, path: nonEmpty, savePath: nonEmpty.optional() }),
   z.object({ type: z.literal("pauseTask"), requestId, id: taskId }),
@@ -73,4 +78,3 @@ export const protocolEnvelopeSchema = <T extends z.ZodType>(payload: T) =>
     version: z.literal(PROTOCOL_VERSION),
     payload,
   });
-

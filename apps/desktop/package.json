@@ -2,7 +2,7 @@
   "name": "@torlink/desktop",
   "private": true,
   "version": "0.1.0",
-  "description": "涌流 Windows desktop shell",
+  "description": "涌流404 Windows desktop shell",
   "type": "module",
   "scripts": {
     "dev": "vite",

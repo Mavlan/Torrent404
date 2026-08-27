@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { coreCommandSchema, downloadTaskSchema, protocolEnvelopeSchema, searchResultSchema } from "./schemas";
+import {
+  coreCommandSchema,
+  downloadTaskSchema,
+  protocolEnvelopeSchema,
+  searchResultSchema,
+  settingsSchema,
+} from "./schemas";
 
 describe("protocol schemas", () => {
   it("accepts a versioned search command", () => {
@@ -12,6 +18,18 @@ describe("protocol schemas", () => {
   it("rejects incompatible protocol versions", () => {
     const schema = protocolEnvelopeSchema(coreCommandSchema);
     expect(() => schema.parse({ version: 2, payload: { type: "listTasks", requestId: "req-2" } })).toThrow();
+  });
+
+  it("accepts both supported interface locales", () => {
+    const base = {
+      schemaVersion: 1,
+      downloadDir: "C:\\Downloads",
+      theme: "system",
+      providerEnabled: {},
+    };
+    expect(settingsSchema.parse({ ...base, language: "zh-CN" }).language).toBe("zh-CN");
+    expect(settingsSchema.parse({ ...base, language: "en-US" }).language).toBe("en-US");
+    expect(() => settingsSchema.parse({ ...base, language: "fr-FR" })).toThrow();
   });
 
   it("requires a downloadable locator on search results", () => {
@@ -35,4 +53,3 @@ describe("protocol schemas", () => {
     ).toThrow();
   });
 });
-

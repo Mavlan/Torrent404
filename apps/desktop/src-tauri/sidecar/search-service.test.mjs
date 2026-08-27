@@ -5,8 +5,8 @@ import { ProviderRegistry } from "./core/ProviderRegistry.js";
 import { SearchAggregator } from "./core/SearchAggregator.js";
 import { SearchService } from "./search-service.mjs";
 
-function provider(id, search) {
-  return { id, displayName: id.toUpperCase(), categories: ["test"], search };
+function provider(id, search, { categories = ["test"], enabled = true } = {}) {
+  return { id, displayName: id.toUpperCase(), categories, enabled, search };
 }
 
 async function collect(service, requestId, { cursor = 0, timeoutMs = 1_000 } = {}) {
@@ -99,4 +99,59 @@ test("cancels an active search and reports cancelled provider state", async () =
   assert.ok(events.some((event) => event.type === "search.provider-status"
     && event.status.state === "cancelled"));
   assert.ok(events.some((event) => event.type === "search.complete" && event.cancelled));
+});
+
+test("filters providers by category and skips disabled providers", async () => {
+  let moviesCalls = 0;
+  let animeCalls = 0;
+  let disabledCalls = 0;
+  const registry = new ProviderRegistry([
+    provider("movies", async function* () {
+      moviesCalls += 1;
+      yield { id: "movies:1", title: "Movie", source: "movies" };
+    }, { categories: ["movies"] }),
+    provider("anime", async function* () {
+      animeCalls += 1;
+      yield { id: "anime:1", title: "Anime", source: "anime" };
+    }, { categories: ["anime"] }),
+    provider("disabled", async function* () {
+      disabledCalls += 1;
+      yield { id: "disabled:1", title: "Disabled", source: "disabled" };
+    }, { categories: ["movies"], enabled: false }),
+  ]);
+  const service = new SearchService(registry, new SearchAggregator(registry));
+
+  service.start("search-category", "legal fixture", "movies");
+  const { events } = await collect(service, "search-category");
+
+  assert.equal(moviesCalls, 1);
+  assert.equal(animeCalls, 0);
+  assert.equal(disabledCalls, 0);
+  assert.deepEqual(
+    events
+      .filter((event) => event.type === "search.provider-status")
+      .map((event) => event.status.providerId),
+    ["movies", "movies"],
+  );
+  assert.ok(events.some((event) => event.type === "search.result" && event.result.source === "movies"));
+});
+
+test("completes cleanly when no provider supports a category", async () => {
+  let calls = 0;
+  const registry = new ProviderRegistry([
+    provider("anime", async function* () {
+      calls += 1;
+    }, { categories: ["anime"] }),
+  ]);
+  const service = new SearchService(registry, new SearchAggregator(registry));
+
+  service.start("search-no-provider", "legal fixture", "software");
+  const { events } = await collect(service, "search-no-provider");
+
+  assert.equal(calls, 0);
+  assert.deepEqual(events, [{
+    type: "search.complete",
+    requestId: "search-no-provider",
+    cancelled: false,
+  }]);
 });

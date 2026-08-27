@@ -317,3 +317,30 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 - 关闭窗口后 `tauri dev` exit code 0；此前 PID 22760 的 bundled Node sidecar 正常退出，
   未发现 TorLink 或 `bootstrap.mjs` 遗留进程。
 - 未进入 Phase 3.4，未运行完整 Phase 3 验收、production bundle 或 torrent smoke。
+
+## 2026-08-28 — Phase 3.3.5 Product UX / Categories / i18n
+
+完成：
+
+- 产品显示名统一为“涌流404”，覆盖 HTML/桌面标题、Tauri `productName`、About、
+  下载目录文案与中文 installer 描述；npm package/module namespace 保持不变。
+- 正式启用 `packages/i18n`，提供完整 `zh-CN` / `en-US` typed catalogs，默认中文；
+  设置页切换语言后导航、搜索、状态、空态、下载/完成、设置、关于和普通错误立即更新。
+- 首页明确说明可搜索电影、剧集、动漫、游戏等 Torrent 资源，并提供 All、Movies、TV、
+  Anime、Games、Software 六类选择；搜索结果原始标题保持原文。
+- category 随 authenticated IPC `search.start` 传入 sidecar；SearchService 按 registry
+  descriptor 的 `categories` 生成 `providerIds`，不支持分类的 provider 不会被调用。
+- YTS 能力标记为 Movies，Nyaa 标记为 Anime；暂未支持 TV/Games/Software 的来源时，
+  UI 明确显示暂无来源，sidecar 直接完成空 provider 搜索。
+- `SearchProvider.enabled` 为可选、默认启用的向后兼容配置边界；registry 仍可发现禁用来源，
+  aggregator 不会消费禁用来源。中文 displayName、稳定 source ID 与 categories 保持支持。
+- 后续中文 provider reconnaissance 与 adapters 已在 `PHASE_3_STEPS.md` 拆为独立小步骤。
+
+局部验证：
+
+- i18n tests：2 PASS；Protocol IPC/schema tests：7 PASS。
+- Core registry/aggregator tests：10 PASS；sidecar search service tests：5 PASS。
+- Desktop App/Tauri metadata tests：9 PASS。
+- Protocol/i18n/Core/Desktop typecheck：PASS；Rust sidecar tests：11 PASS；
+  `cargo check --locked`：PASS。
+- 未进入 Phase 3.4，未接下载，未修改 TorrentManager/WebTorrentAdapter，未运行完整验收。

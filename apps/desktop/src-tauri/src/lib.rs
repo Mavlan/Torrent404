@@ -19,9 +19,12 @@ fn use_sidecar(
 #[tauri::command]
 fn search_start(
     query: String,
+    category: String,
     state: State<'_, Mutex<SidecarSupervisor>>,
 ) -> Result<Value, String> {
-    use_sidecar(state, |supervisor| supervisor.start_search(&query))
+    use_sidecar(state, |supervisor| {
+        supervisor.start_search(&query, &category)
+    })
 }
 
 #[tauri::command]

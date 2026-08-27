@@ -123,4 +123,18 @@ describe("SearchAggregator", () => {
     await expect(completion).resolves.toEqual([]);
     expect(aborts.sort()).toEqual(["one", "two"]);
   });
+
+  it("does not call providers disabled by product configuration", async () => {
+    const disabledSearch = vi.fn(async function* () {
+      yield { id: "disabled", title: "Disabled", source: "disabled" };
+    });
+    const disabled = { ...provider("disabled", disabledSearch), enabled: false };
+
+    const results = await collect(new SearchAggregator(
+      new ProviderRegistry([disabled]),
+    ).search("linux", { providerIds: ["disabled"] }));
+
+    expect(results).toEqual([]);
+    expect(disabledSearch).not.toHaveBeenCalled();
+  });
 });

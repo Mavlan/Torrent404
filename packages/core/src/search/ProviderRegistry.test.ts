@@ -28,11 +28,27 @@ describe("ProviderRegistry", () => {
 
     const descriptors = registry.describe();
     expect(descriptors).toEqual([
-      { id: "alpha", displayName: "ALPHA", categories: ["general"] },
-      { id: "beta", displayName: "BETA", categories: ["general"] },
+      { id: "alpha", displayName: "ALPHA", categories: ["general"], enabled: true },
+      { id: "beta", displayName: "BETA", categories: ["general"], enabled: true },
     ]);
     (descriptors[0]!.categories as string[]).push("changed");
     expect(registry.describe()[0]!.categories).toEqual(["general"]);
+  });
+
+  it("keeps disabled providers discoverable but excludes them from enabled searches", () => {
+    const registry = new ProviderRegistry([
+      provider("enabled"),
+      { ...provider("disabled"), displayName: "中文来源", enabled: false },
+    ]);
+
+    expect(registry.list().map(({ id }) => id)).toEqual(["enabled", "disabled"]);
+    expect(registry.listEnabled().map(({ id }) => id)).toEqual(["enabled"]);
+    expect(registry.describe()[1]).toEqual({
+      id: "disabled",
+      displayName: "中文来源",
+      categories: ["general"],
+      enabled: false,
+    });
   });
 
   it("rejects duplicate or invalid provider metadata", () => {

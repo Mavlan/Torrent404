@@ -12,6 +12,16 @@ export type DownloadStatus = (typeof downloadStatuses)[number];
 export const themes = ["system", "light", "dark"] as const;
 export type Theme = (typeof themes)[number];
 
+export const searchCategories = [
+  "all",
+  "movies",
+  "tv",
+  "anime",
+  "games",
+  "software",
+] as const;
+export type SearchCategory = (typeof searchCategories)[number];
+
 export interface SearchResult {
   id: string;
   title: string;
@@ -43,7 +53,7 @@ export interface DownloadTask {
 export interface Settings {
   schemaVersion: number;
   downloadDir: string;
-  language: "zh-CN";
+  language: "zh-CN" | "en-US";
   theme: Theme;
   providerEnabled: Record<string, boolean>;
 }

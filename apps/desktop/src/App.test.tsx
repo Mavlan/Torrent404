@@ -7,9 +7,15 @@ import type { SearchClient } from "./searchClient";
 describe("desktop shell", () => {
   it("renders the Chinese-first search surface", () => {
     render(<App />);
+    expect(screen.getByText("涌流404")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /从一个入口/ })).toBeInTheDocument();
+    expect(screen.getByText("搜索电影、剧集、动漫、游戏和其他 Torrent 资源")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("输入关键词、Magnet 或 infohash")).toBeInTheDocument();
     expect(screen.getByText("无中央代理服务")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "搜索分类" })).toBeInTheDocument();
+    for (const category of ["全部", "电影", "剧集", "动漫", "游戏", "软件"]) {
+      expect(screen.getByRole("button", { name: new RegExp(category) })).toBeInTheDocument();
+    }
   });
 
   it("navigates to downloads and shows its empty state", async () => {
@@ -23,8 +29,27 @@ describe("desktop shell", () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole("button", { name: "关于" }));
+    expect(screen.getByRole("heading", { name: "关于涌流404" })).toBeInTheDocument();
     expect(screen.getByText(/peers 可以看到你的公网 IP/)).toBeInTheDocument();
     expect(screen.getByText(/并非 TorLink 官方版本/)).toBeInTheDocument();
+  });
+
+  it("switches the complete shell to English without restarting", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    await user.click(screen.getByRole("button", { name: "English" }));
+
+    expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
+    expect(document.documentElement.lang).toBe("en-US");
+    expect(document.title).toBe("涌流404");
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    expect(screen.getByText("Search movies, TV, anime, games and other torrents")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Movies/ })).toBeInTheDocument();
+    const searchButtons = screen.getAllByRole("button", { name: "Search" });
+    await user.click(searchButtons.at(-1)!);
+    expect(screen.getByText("Enter keywords, a magnet, or an infohash first.")).toBeInTheDocument();
   });
 
   it("renders YTS and Nyaa results incrementally from IPC", async () => {
@@ -95,6 +120,7 @@ describe("desktop shell", () => {
     expect(await screen.findByRole("heading", { name: "Open Animation Test" })).toBeInTheDocument();
     expect(screen.getByText(/1\.0 MiB/)).toBeInTheDocument();
     expect(screen.getByText(/1\.5 GiB/)).toBeInTheDocument();
+    expect(client.start).toHaveBeenCalledWith("open media", "all");
     expect(client.poll).toHaveBeenNthCalledWith(1, requestId, 0);
     expect(client.poll).toHaveBeenNthCalledWith(2, requestId, 2);
   });
@@ -130,7 +156,31 @@ describe("desktop shell", () => {
     await user.click(screen.getByRole("button", { name: /^开始搜索/ }));
 
     await waitFor(() => expect(client.cancel).toHaveBeenCalledWith("search-old"));
-    await waitFor(() => expect(client.start).toHaveBeenLastCalledWith("second"));
+    await waitFor(() => expect(client.start).toHaveBeenLastCalledWith("second", "all"));
     finishOldPoll({ requestId: "search-old", events: [], nextCursor: 0, done: true });
+  });
+
+  it("passes the selected category to authenticated search IPC", async () => {
+    const requestId = "search-movies";
+    const client: SearchClient = {
+      start: vi.fn().mockResolvedValue({ requestId }),
+      poll: vi.fn().mockResolvedValue({
+        requestId,
+        events: [{ type: "search.complete", requestId, cancelled: false }],
+        nextCursor: 1,
+        done: true,
+      }),
+      cancel: vi.fn().mockResolvedValue({ requestId, cancelled: true }),
+    };
+    const user = userEvent.setup();
+    render(<App searchClient={client} />);
+
+    await user.click(screen.getByRole("button", { name: /电影/ }));
+    await user.type(screen.getByPlaceholderText("输入关键词、Magnet 或 infohash"), "legal movie");
+    await user.click(screen.getByRole("button", { name: /^开始搜索/ }));
+
+    await waitFor(() => expect(client.start).toHaveBeenCalledWith("legal movie", "movies"));
+    expect(screen.getByText("YTS")).toBeInTheDocument();
+    expect(screen.queryByText("Nyaa")).not.toBeInTheDocument();
   });
 });

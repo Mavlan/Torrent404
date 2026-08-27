@@ -42,11 +42,16 @@ export class ProviderRegistry {
     return [...this.#providers.values()];
   }
 
+  listEnabled(): readonly SearchProvider[] {
+    return this.list().filter(({ enabled }) => enabled !== false);
+  }
+
   describe(): readonly SearchProviderDescriptor[] {
-    return this.list().map(({ id, displayName, categories }) => ({
+    return this.list().map(({ id, displayName, categories, enabled }) => ({
       id,
       displayName,
       categories: [...categories],
+      enabled: enabled !== false,
     }));
   }
 }

@@ -1,7 +1,7 @@
 [package]
 name = "torlink-desktop"
 version = "0.1.0"
-description = "涌流：中文优先的本地 BitTorrent 搜索与下载桌面客户端"
+description = "涌流404：中文优先的本地 BitTorrent 搜索与下载桌面客户端"
 authors = ["TorLink Desktop contributors"]
 edition = "2021"
 

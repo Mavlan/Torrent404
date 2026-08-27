@@ -1,28 +1,63 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { zhCN } from "@torlink/i18n";
-import type {
-  DownloadTask,
-  SearchIpcEvent,
-  SearchProviderState,
-  SearchProviderStatus,
-  SearchResult,
+import {
+  DEFAULT_LOCALE,
+  translate,
+  type Locale,
+  type MessageKey,
+} from "@torlink/i18n";
+import {
+  searchCategories,
+  type DownloadTask,
+  type SearchCategory,
+  type SearchIpcEvent,
+  type SearchProviderState,
+  type SearchProviderStatus,
+  type SearchResult,
 } from "@torlink/protocol";
 import { desktopSearchClient, type SearchClient } from "./searchClient";
 
 type Page = "search" | "downloading" | "completed" | "settings" | "about";
 type IconName = "search" | "arrow" | "check" | "settings" | "info" | "folder" | "shield";
+type Translator = (key: MessageKey) => string;
 
-const navItems: ReadonlyArray<{ id: Page; label: string; icon: IconName; count?: number }> = [
-  { id: "search", label: zhCN["nav.search"], icon: "search" },
-  { id: "downloading", label: zhCN["nav.downloading"], icon: "arrow", count: 0 },
-  { id: "completed", label: zhCN["nav.completed"], icon: "check", count: 0 },
-  { id: "settings", label: zhCN["nav.settings"], icon: "settings" },
-  { id: "about", label: zhCN["nav.about"], icon: "info" },
+const navItems: ReadonlyArray<{
+  id: Page;
+  labelKey: MessageKey;
+  icon: IconName;
+  count?: number;
+}> = [
+  { id: "search", labelKey: "nav.search", icon: "search" },
+  { id: "downloading", labelKey: "nav.downloading", icon: "arrow", count: 0 },
+  { id: "completed", labelKey: "nav.completed", icon: "check", count: 0 },
+  { id: "settings", labelKey: "nav.settings", icon: "settings" },
+  { id: "about", labelKey: "nav.about", icon: "info" },
 ];
 
-const providers = [
-  { id: "yts", displayName: "YTS" },
-  { id: "nyaa", displayName: "Nyaa" },
+const categoryLabelKeys: Record<SearchCategory, MessageKey> = {
+  all: "category.all",
+  movies: "category.movies",
+  tv: "category.tv",
+  anime: "category.anime",
+  games: "category.games",
+  software: "category.software",
+};
+const themeLabelKeys = {
+  system: "settings.themeSystem",
+  light: "settings.themeLight",
+  dark: "settings.themeDark",
+} as const satisfies Record<"system" | "light" | "dark", MessageKey>;
+const localeLabelKeys: Record<Locale, MessageKey> = {
+  "zh-CN": "settings.languageZh",
+  "en-US": "settings.languageEn",
+};
+
+const providers: ReadonlyArray<{
+  id: "yts" | "nyaa";
+  displayName: string;
+  categories: readonly SearchCategory[];
+}> = [
+  { id: "yts", displayName: "YTS", categories: ["movies"] },
+  { id: "nyaa", displayName: "Nyaa", categories: ["anime"] },
 ] as const;
 const noTasks: DownloadTask[] = [];
 
@@ -38,15 +73,16 @@ function formatBytes(value = 0): string {
   return `${amount >= 10 ? amount.toFixed(0) : amount.toFixed(1)} ${units[unit]}`;
 }
 
-function providerStateLabel(state: SearchProviderState | undefined): string {
-  if (!state) return "待命";
-  return {
-    searching: "搜索中",
-    complete: "完成",
-    error: "错误",
-    timeout: "超时",
-    cancelled: "已取消",
-  }[state];
+function providerStateLabel(state: SearchProviderState | undefined, t: Translator): string {
+  if (!state) return t("provider.idle");
+  const labelKeys: Record<SearchProviderState, MessageKey> = {
+    searching: "provider.searching",
+    complete: "provider.complete",
+    error: "provider.error",
+    timeout: "provider.timeout",
+    cancelled: "provider.cancelled",
+  };
+  return t(labelKeys[state]);
 }
 
 function Icon({ name }: { name: IconName }) {
@@ -63,15 +99,16 @@ function Icon({ name }: { name: IconName }) {
   return <svg aria-hidden="true" className="icon" viewBox="0 0 24 24">{paths[name]}</svg>;
 }
 
-function EmptyState({ kind }: { kind: "downloads" | "completed" }) {
-  const title = kind === "downloads" ? zhCN["downloads.emptyTitle"] : zhCN["completed.emptyTitle"];
-  const body = kind === "downloads" ? zhCN["downloads.emptyBody"] : zhCN["completed.emptyBody"];
+function EmptyState({ kind, t }: { kind: "downloads" | "completed"; t: Translator }) {
+  const titleKey = kind === "downloads" ? "downloads.emptyTitle" : "completed.emptyTitle";
+  const bodyKey = kind === "downloads" ? "downloads.emptyBody" : "completed.emptyBody";
+  const kickerKey = kind === "downloads" ? "downloads.emptyKicker" : "completed.emptyKicker";
   return (
     <section className="empty-stage compact-stage" aria-labelledby={`${kind}-empty-title`}>
       <div className="empty-glyph" aria-hidden="true"><Icon name={kind === "downloads" ? "arrow" : "check"} /></div>
-      <p className="section-kicker">{kind === "downloads" ? "QUEUE / 00" : "ARCHIVE / 00"}</p>
-      <h2 id={`${kind}-empty-title`}>{title}</h2>
-      <p>{body}</p>
+      <p className="section-kicker">{t(kickerKey)}</p>
+      <h2 id={`${kind}-empty-title`}>{t(titleKey)}</h2>
+      <p>{t(bodyKey)}</p>
     </section>
   );
 }
@@ -92,8 +129,10 @@ interface AppProps {
 
 function App({ searchClient = desktopSearchClient }: AppProps) {
   const [page, setPage] = useState<Page>("search");
+  const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
+  const [category, setCategory] = useState<SearchCategory>("all");
   const [query, setQuery] = useState("");
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<MessageKey | null>(null);
   const [theme, setTheme] = useState<"system" | "light" | "dark">("system");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [providerStatuses, setProviderStatuses] = useState<Record<string, SearchProviderStatus>>({});
@@ -102,8 +141,20 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
     generation: 0,
     requestId: null,
   });
+  const t: Translator = (key) => translate(locale, key);
+  const activeLabel = useMemo(
+    () => t(navItems.find((item) => item.id === page)?.labelKey ?? "nav.search"),
+    [locale, page],
+  );
+  const activeProviders = useMemo(
+    () => providers.filter((provider) => category === "all" || provider.categories.includes(category)),
+    [category],
+  );
 
-  const activeLabel = useMemo(() => navItems.find((item) => item.id === page)?.label ?? "搜索", [page]);
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    document.title = translate(locale, "app.name");
+  }, [locale]);
 
   useEffect(() => () => {
     activeSearch.current.generation += 1;
@@ -119,7 +170,7 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
       if (event.type === "search.provider-status") incomingStatuses.push(event.status);
       if (event.type === "search.error") {
         setSearchState("error");
-        setNotice(event.error.message);
+        setNotice("error.searchUnavailable");
       }
     }
     if (incomingResults.length > 0) {
@@ -132,6 +183,23 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
         return next;
       });
     }
+  };
+
+  const cancelCurrentSearch = () => {
+    activeSearch.current.generation += 1;
+    const requestId = activeSearch.current.requestId;
+    activeSearch.current.requestId = null;
+    if (requestId) void searchClient.cancel(requestId).catch(() => undefined);
+  };
+
+  const selectCategory = (nextCategory: SearchCategory) => {
+    if (nextCategory === category) return;
+    cancelCurrentSearch();
+    setCategory(nextCategory);
+    setSearchResults([]);
+    setProviderStatuses({});
+    setSearchState("idle");
+    setNotice(null);
   };
 
   const runSearch = async (value: string) => {
@@ -149,7 +217,7 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
       }
       if (activeSearch.current.generation !== generation) return;
 
-      const started = await searchClient.start(value);
+      const started = await searchClient.start(value, category);
       if (activeSearch.current.generation !== generation) {
         await searchClient.cancel(started.requestId).catch(() => undefined);
         return;
@@ -173,7 +241,7 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
       if (activeSearch.current.generation === generation) {
         activeSearch.current.requestId = null;
         setSearchState("error");
-        setNotice("本机搜索服务暂时不可用，请稍后重试。");
+        setNotice("error.searchUnavailable");
       }
     }
   };
@@ -182,22 +250,33 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
     event.preventDefault();
     const value = query.trim();
     if (!value) {
-      setNotice("输入关键词、Magnet 或 infohash 后再试。");
+      setNotice("error.queryRequired");
       return;
     }
     void runSearch(value);
   };
 
+  const emptyTitle = searchState === "searching"
+    ? t("search.loadingTitle")
+    : searchState === "complete"
+      ? t("search.noResultsTitle")
+      : t("search.emptyTitle");
+  const emptyBody = searchState === "searching"
+    ? t("search.loadingBody")
+    : searchState === "complete"
+      ? t("search.noResultsBody")
+      : t("search.emptyBody");
+
   return (
-    <div className="app-shell" data-theme={theme}>
-      <aside className="sidebar" aria-label="主导航">
+    <div className="app-shell" data-theme={theme} lang={locale}>
+      <aside className="sidebar" aria-label={t("nav.workspace")}>
         <div className="brand-block">
           <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
-          <div><strong>{zhCN["app.name"]}</strong><small>COMMUNITY DESKTOP</small></div>
+          <div><strong>{t("app.name")}</strong><small>{t("app.edition")}</small></div>
         </div>
 
         <nav>
-          <p className="nav-caption">工作区</p>
+          <p className="nav-caption">{t("nav.workspace")}</p>
           {navItems.map((item) => (
             <button
               className={page === item.id ? "nav-item active" : "nav-item"}
@@ -207,7 +286,7 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
               aria-current={page === item.id ? "page" : undefined}
             >
               <Icon name={item.icon} />
-              <span>{item.label}</span>
+              <span>{t(item.labelKey)}</span>
               {item.count !== undefined ? <b>{String(item.count).padStart(2, "0")}</b> : null}
             </button>
           ))}
@@ -215,25 +294,26 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
 
         <div className="privacy-card">
           <Icon name="shield" />
-          <div><strong>{zhCN["status.localOnly"]}</strong><span>无中央代理服务</span></div>
+          <div><strong>{t("status.localOnly")}</strong><span>{t("status.localOnlyBody")}</span></div>
         </div>
-        <p className="version-label">v0.1.0 · PHASE 3</p>
+        <p className="version-label">v0.1.0 · PHASE 3.3.5</p>
       </aside>
 
       <main className="workspace">
         <header className="topbar">
-          <div><span className="breadcrumb">涌流 /</span><strong>{activeLabel}</strong></div>
-          <div className="local-status"><i /> 本机服务准备就绪</div>
+          <div><span className="breadcrumb">{t("app.name")} /</span><strong>{activeLabel}</strong></div>
+          <div className="local-status"><i /> {t("status.serviceReady")}</div>
         </header>
 
-        <div className="page-frame" key={page}>
+        <div className="page-frame" key={`${page}-${locale}`}>
           {page === "search" ? (
             <>
               <section className="search-hero" aria-labelledby="search-title">
                 <div className="hero-copy">
-                  <p className="section-kicker">{zhCN["search.eyebrow"]}</p>
-                  <h1 id="search-title">从一个入口，<br /><em>抵达整个网络。</em></h1>
-                  <p className="hero-intro">结果按来源增量抵达。任何单点失联，都不会让整次搜索停摆。</p>
+                  <p className="section-kicker">{t("search.eyebrow")}</p>
+                  <h1 id="search-title">{t("search.titleLead")}<br /><em>{t("search.titleAccent")}</em></h1>
+                  <p className="hero-purpose">{t("search.purpose")}</p>
+                  <p className="hero-intro">{t("search.intro")}</p>
                 </div>
                 <div className="signal-art" aria-hidden="true">
                   <span className="orbit orbit-one" /><span className="orbit orbit-two" />
@@ -242,39 +322,54 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
                 </div>
               </section>
 
+              <div className="category-strip" role="group" aria-label={t("search.categoryLabel")}>
+                {searchCategories.map((item) => (
+                  <button
+                    aria-pressed={category === item}
+                    className={category === item ? "selected" : ""}
+                    key={item}
+                    onClick={() => selectCategory(item)}
+                    type="button"
+                  >
+                    <span>{t(categoryLabelKeys[item])}</span>
+                    <small>{String(providers.filter((provider) => item === "all" || provider.categories.includes(item)).length).padStart(2, "0")}</small>
+                  </button>
+                ))}
+              </div>
+
               <form className="search-form" onSubmit={submitSearch}>
                 <Icon name="search" />
-                <label className="sr-only" htmlFor="global-search">搜索 Torrent</label>
-                <input id="global-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={zhCN["search.placeholder"]} autoComplete="off" />
+                <label className="sr-only" htmlFor="global-search">{t("search.fieldLabel")}</label>
+                <input id="global-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("search.placeholder")} autoComplete="off" />
                 <kbd>ENTER</kbd>
-                <button type="submit">{zhCN["search.action"]}<span aria-hidden="true">↗</span></button>
+                <button type="submit">{t("search.action")}<span aria-hidden="true">↗</span></button>
               </form>
 
-              <section className="provider-line" aria-label="搜索来源">
-                <span>来源矩阵</span>
-                <div>{providers.map((provider) => {
+              <section className="provider-line" aria-label={t("search.providers")}>
+                <span>{t("search.providers")}</span>
+                <div>{activeProviders.length > 0 ? activeProviders.map((provider) => {
                   const status = providerStatuses[provider.id];
                   return (
                     <b key={provider.id} data-state={status?.state ?? "idle"}>
-                      <i />{provider.displayName}<small>{providerStateLabel(status?.state)}</small>
+                      <i />{provider.displayName}<small>{providerStateLabel(status?.state, t)}</small>
                     </b>
                   );
-                })}</div>
+                }) : <small className="no-providers">{t("search.noProviders")}</small>}</div>
               </section>
 
               {searchResults.length > 0 ? (
-                <section className="search-results" aria-label="搜索结果">
-                  <header><span>RESULT STREAM</span><strong>{String(searchResults.length).padStart(2, "0")}</strong></header>
+                <section className="search-results" aria-label={t("search.results")}>
+                  <header><span>{t("search.results")}</span><strong>{String(searchResults.length).padStart(2, "0")}</strong></header>
                   {searchResults.map((result) => (
                     <article className="search-result" key={result.id}>
                       <div>
                         <span className="result-source">{result.source}</span>
                         <h2>{result.title}</h2>
-                        <p>{result.category ?? "未分类"} · {formatBytes(result.sizeBytes)}</p>
+                        <p>{result.category ?? t("search.uncategorized")} · {formatBytes(result.sizeBytes)}</p>
                       </div>
                       <dl>
-                        <div><dt>SEED</dt><dd>{result.seeders ?? 0}</dd></div>
-                        <div><dt>LEECH</dt><dd>{result.leechers ?? 0}</dd></div>
+                        <div><dt>{t("result.seed")}</dt><dd>{result.seeders ?? 0}</dd></div>
+                        <div><dt>{t("result.leech")}</dt><dd>{result.leechers ?? 0}</dd></div>
                       </dl>
                     </article>
                   ))}
@@ -283,15 +378,9 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
                 <section className="empty-stage search-empty" aria-labelledby="search-empty-title">
                   <div className="empty-index">00</div>
                   <div>
-                    <p className="section-kicker">{searchState === "searching" ? "SEARCHING YTS + NYAA" : "WAITING FOR A QUERY"}</p>
-                    <h2 id="search-empty-title">
-                      {searchState === "searching"
-                        ? "正在等待首批结果"
-                        : searchState === "complete"
-                          ? "没有找到匹配结果"
-                          : zhCN["search.emptyTitle"]}
-                    </h2>
-                    <p>{searchState === "searching" ? "结果会在各来源返回时立即出现。" : zhCN["search.emptyBody"]}</p>
+                    <p className="section-kicker">{searchState === "searching" ? t("search.searchingKicker") : t("search.waitingKicker")}</p>
+                    <h2 id="search-empty-title">{emptyTitle}</h2>
+                    <p>{emptyBody}</p>
                   </div>
                   <span className="corner-mark" aria-hidden="true">⌁</span>
                 </section>
@@ -301,33 +390,47 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
 
           {page === "downloading" ? (
             <>
-              <div className="page-heading"><p className="section-kicker">ACTIVE TRANSFERS</p><h1>下载中</h1><span>实时查看任务状态，不打扰正在发生的传输。</span></div>
-              <div className="metrics"><Metric label="活动任务" value={String(noTasks.length).padStart(2, "0")} /><Metric label="下载速度" value="0" unit="B/s" /><Metric label="连接 Peers" value="00" /></div>
-              <EmptyState kind="downloads" />
+              <div className="page-heading"><p className="section-kicker">{t("downloads.kicker")}</p><h1>{t("downloads.title")}</h1><span>{t("downloads.subtitle")}</span></div>
+              <div className="metrics"><Metric label={t("downloads.metricTasks")} value={String(noTasks.length).padStart(2, "0")} /><Metric label={t("downloads.metricSpeed")} value="0" unit="B/s" /><Metric label={t("downloads.metricPeers")} value="00" /></div>
+              <EmptyState kind="downloads" t={t} />
             </>
           ) : null}
 
           {page === "completed" ? (
             <>
-              <div className="page-heading"><p className="section-kicker">LOCAL ARCHIVE</p><h1>已完成</h1><span>打开保存位置，或随时停止继续分享。</span></div>
-              <div className="metrics"><Metric label="完成任务" value="00" /><Metric label="正在做种" value="00" /><Metric label="累计体积" value="0" unit="B" /></div>
-              <EmptyState kind="completed" />
+              <div className="page-heading"><p className="section-kicker">{t("completed.kicker")}</p><h1>{t("completed.title")}</h1><span>{t("completed.subtitle")}</span></div>
+              <div className="metrics"><Metric label={t("completed.metricTasks")} value="00" /><Metric label={t("completed.metricSeeding")} value="00" /><Metric label={t("completed.metricSize")} value="0" unit="B" /></div>
+              <EmptyState kind="completed" t={t} />
             </>
           ) : null}
 
           {page === "settings" ? (
             <>
-              <div className="page-heading"><p className="section-kicker">PREFERENCES</p><h1>设置</h1><span>所有偏好保存在这台设备上。</span></div>
+              <div className="page-heading"><p className="section-kicker">{t("settings.kicker")}</p><h1>{t("settings.title")}</h1><span>{t("settings.subtitle")}</span></div>
               <div className="settings-grid">
                 <section className="setting-panel">
                   <div className="setting-icon"><Icon name="folder" /></div>
-                  <div><p className="section-kicker">DOWNLOAD DIRECTORY</p><h2>默认下载目录</h2><p>下载文件将保存到系统 Downloads 下的“涌流”目录。</p><code>C:\Users\…\Downloads\涌流</code></div>
-                  <button type="button" onClick={() => setNotice("原生目录选择器将在 Phase 3 接入。")}>更改</button>
+                  <div><p className="section-kicker">{t("settings.downloadKicker")}</p><h2>{t("settings.downloadTitle")}</h2><p>{t("settings.downloadBody")}</p><code>C:\Users\…\Downloads\涌流404</code></div>
+                  <button type="button" onClick={() => setNotice("settings.changePending")}>{t("settings.change")}</button>
                 </section>
                 <section className="setting-panel theme-panel">
-                  <div><p className="section-kicker">APPEARANCE</p><h2>外观</h2><p>默认跟随 Windows，也可以固定当前主题。</p></div>
-                  <div className="segmented" aria-label="主题">
-                    {(["system", "light", "dark"] as const).map((item) => <button className={theme === item ? "selected" : ""} key={item} onClick={() => setTheme(item)} type="button">{{ system: "跟随系统", light: "浅色", dark: "深色" }[item]}</button>)}
+                  <div><p className="section-kicker">{t("settings.appearanceKicker")}</p><h2>{t("settings.appearanceTitle")}</h2><p>{t("settings.appearanceBody")}</p></div>
+                  <div className="segmented" aria-label={t("settings.themeLabel")}>
+                    {(["system", "light", "dark"] as const).map((item) => (
+                      <button className={theme === item ? "selected" : ""} key={item} onClick={() => setTheme(item)} type="button">
+                        {t(themeLabelKeys[item])}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+                <section className="setting-panel language-panel">
+                  <div><p className="section-kicker">{t("settings.languageKicker")}</p><h2>{t("settings.languageTitle")}</h2><p>{t("settings.languageBody")}</p></div>
+                  <div className="segmented" aria-label={t("settings.languageLabel")}>
+                    {(["zh-CN", "en-US"] as const).map((item) => (
+                      <button className={locale === item ? "selected" : ""} key={item} onClick={() => setLocale(item)} type="button">
+                        {t(localeLabelKeys[item])}
+                      </button>
+                    ))}
                   </div>
                 </section>
               </div>
@@ -336,16 +439,16 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
 
           {page === "about" ? (
             <>
-              <div className="page-heading"><p className="section-kicker">ABOUT THIS BUILD</p><h1>关于涌流</h1><span>独立、透明、保持边界。</span></div>
+              <div className="page-heading"><p className="section-kicker">{t("about.kicker")}</p><h1>{t("about.title")}</h1><span>{t("about.subtitle")}</span></div>
               <div className="about-grid">
-                <section className="about-lead"><span className="about-number">0.1</span><h2>不是匿名工具，<br />也不假装是。</h2><p>BitTorrent peers 可以看到你的公网 IP。涌流不提供 Tor、VPN 或任何规避网络安全机制的功能。</p></section>
-                <section className="about-card"><p className="section-kicker">OPEN SOURCE CREDITS</p><h2>站在成熟项目之上</h2><p>本项目受 TorLink 启发，下载能力由 WebTorrent 生态提供。涌流是独立社区项目，并非 TorLink 官方版本。</p><div className="license-row"><span>TorLink</span><b>MIT</b></div><div className="license-row"><span>WebTorrent</span><b>MIT</b></div></section>
+                <section className="about-lead"><span className="about-number">404</span><h2>{t("about.privacyTitle")}</h2><p>{t("about.privacyBody")}</p></section>
+                <section className="about-card"><p className="section-kicker">{t("about.creditsKicker")}</p><h2>{t("about.creditsTitle")}</h2><p>{t("about.creditsBody")}</p><div className="license-row"><span>TorLink</span><b>MIT</b></div><div className="license-row"><span>WebTorrent</span><b>MIT</b></div></section>
               </div>
             </>
           ) : null}
         </div>
 
-        <div className={notice ? "toast visible" : "toast"} role="status" aria-live="polite">{notice}</div>
+        <div className={notice ? "toast visible" : "toast"} role="status" aria-live="polite">{notice ? t(notice) : null}</div>
       </main>
     </div>
   );

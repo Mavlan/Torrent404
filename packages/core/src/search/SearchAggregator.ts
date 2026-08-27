@@ -73,10 +73,11 @@ function selectedProviders(
   registry: ProviderRegistry,
   providerIds: readonly string[] | undefined,
 ): readonly SearchProvider[] {
-  if (!providerIds) return registry.list();
+  if (!providerIds) return registry.listEnabled();
   return providerIds.flatMap((id) => {
     const provider = registry.get(id);
-    return provider ? [provider] : [];
+    if (!provider || provider.enabled === false) return [];
+    return [provider];
   });
 }
 

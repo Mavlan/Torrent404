@@ -296,11 +296,11 @@ impl SidecarSupervisor {
         Ok(response)
     }
 
-    pub(crate) fn start_search(&self, query: &str) -> Result<Value, SidecarError> {
+    pub(crate) fn start_search(&self, query: &str, category: &str) -> Result<Value, SidecarError> {
         let request_id = format!("search-{}", generate_random_hex(16)?);
         self.command(
             "search.start",
-            json!({ "requestId": request_id, "query": query }),
+            json!({ "requestId": request_id, "query": query, "category": category }),
         )?
         .result
         .ok_or(SidecarError::IpcProtocol)
@@ -622,7 +622,7 @@ mod tests {
         };
         let mut supervisor = started_supervisor_with_config(&config);
         let started = supervisor
-            .start_search("legal fixture")
+            .start_search("legal fixture", "all")
             .expect("search should start");
         let request_id = started["requestId"]
             .as_str()
@@ -663,7 +663,7 @@ mod tests {
             .iter()
             .any(|event| { event["type"] == "search.complete" && event["cancelled"] == false }));
         let second = supervisor
-            .start_search("second fixture")
+            .start_search("second fixture", "all")
             .expect("second search should start");
         let second_request_id = second["requestId"]
             .as_str()
