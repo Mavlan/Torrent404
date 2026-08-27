@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:nyaa="https://nyaa.si/xmlns/nyaa">
+  <channel>
+    <title>Local legal RSS fixture</title>
+    <item>
+      <title>Open Animation &amp; Test [1080p]</title>
+      <nyaa:infoHash>ABCDEF0123456789ABCDEF0123456789ABCDEF01</nyaa:infoHash>
+      <nyaa:size>1.5 GiB</nyaa:size>
+      <nyaa:seeders>42</nyaa:seeders>
+      <nyaa:leechers>7</nyaa:leechers>
+    </item>
+  </channel>
+</rss>

@@ -135,3 +135,21 @@
 
 - Core 与 Protocol typecheck：PASS。
 - `YtsProvider.test.ts`：PASS，3 个测试。
+
+## 2026-08-27 — Phase 2.3.2 Nyaa RSS Provider Adapter
+
+选择 Nyaa 验证非 JSON adapter：RSS schema 比 YTS 稍复杂，包含 XML、CDATA、
+entity、namespaced swarm 字段和文本大小，但仍是无需认证或详情页的单请求来源。
+
+完成：
+
+- 新增独立 `NyaaProvider`，未修改 provider registry 或 aggregator 架构。
+- 使用只识别完整 RSS item 和已知字段的窄解析器；不解析 DTD 或外部实体。
+- 校验并小写化 40 位十六进制 infohash，生成规范 magnet。
+- 解析十进制/二进制大小单位；畸形可选字段安全归零，缺失必需字段逐条跳过。
+- 三个本地合成 XML fixture 覆盖正常、空结果和字段缺失/畸形，不访问公网。
+
+局部验证：
+
+- Core 与 Protocol typecheck：PASS。
+- `NyaaProvider.test.ts`：PASS，3 个测试。

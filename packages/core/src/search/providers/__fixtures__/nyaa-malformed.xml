@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:nyaa="https://nyaa.si/xmlns/nyaa">
+  <channel>
+    <item>
+      <title>Missing hash</title>
+      <nyaa:size>1 GiB</nyaa:size>
+    </item>
+    <item>
+      <title>Invalid hash</title>
+      <nyaa:infoHash>not-an-infohash</nyaa:infoHash>
+    </item>
+    <item>
+      <nyaa:infoHash>1111111111111111111111111111111111111111</nyaa:infoHash>
+    </item>
+    <item>
+      <title><![CDATA[Valid fallback &amp; fields]]></title>
+      <nyaa:infoHash>FEDCBA9876543210FEDCBA9876543210FEDCBA98</nyaa:infoHash>
+      <nyaa:size>unknown</nyaa:size>
+      <nyaa:seeders>many</nyaa:seeders>
+    </item>
+  </channel>
+</rss>

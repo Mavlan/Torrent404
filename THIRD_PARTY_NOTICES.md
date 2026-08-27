@@ -9,9 +9,10 @@ TorLink is an upstream reference and planned source of selected reusable modules
 - License: MIT
 - Copyright: `Copyright (c) 2026 bairon.dev`
 
-Phase 0 contains no copied TorLink source code. Phase 2 adapts the YTS response mapping
-from `src/sources/yts.ts` into
-`packages/core/src/search/providers/YtsProvider.ts`; the desktop version uses the
+Phase 0 contains no copied TorLink source code. Phase 2 adapts provider response
+mapping from `src/sources/yts.ts` and `src/sources/nyaa.ts` into
+`packages/core/src/search/providers/YtsProvider.ts` and
+`packages/core/src/search/providers/NyaaProvider.ts`. The desktop versions use the
 project-owned async provider contract, strict runtime validation, canonical output,
 and injectable networking. The following notice and license apply:
 
