@@ -153,3 +153,21 @@ entity、namespaced swarm 字段和文本大小，但仍是无需认证或详情
 
 - Core 与 Protocol typecheck：PASS。
 - `NyaaProvider.test.ts`：PASS，3 个测试。
+
+## 2026-08-27 — Phase 2.4 Download Task State Model
+
+Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两类数据源。
+
+完成：
+
+- 基于 protocol `DownloadTask` 建立无副作用的任务创建与状态转换模型。
+- 新任务固定从 `queued` 开始，并校验 ID、名称、保存路径、infohash 与总大小。
+- 为 queued/downloading/paused/completed/seeding/error 建立显式合法转换表。
+- 非法及同状态转换抛出结构化错误；error 必须携带消息，重试时清除旧错误。
+- 暂停/完成/做种等状态统一清理瞬时速度和 ETA；完成态规范化进度与字节数。
+- 本步骤不接入 WebTorrent 或 TorrentManager，未修改搜索架构。
+
+局部验证：
+
+- Core 与 Protocol typecheck：PASS。
+- `DownloadTaskModel.test.ts`：PASS，6 个测试。
