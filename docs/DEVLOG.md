@@ -293,3 +293,27 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
   经真实 authenticated IPC 增量返回与 request ID 唯一性。
 - Protocol/Core/Desktop typecheck 与 `cargo check --locked`：PASS。
 - 未运行全量验收、production bundle 或真实 torrent smoke，未进入 Phase 3.4。
+
+## 2026-08-28 — Phase 3.3 Tauri dev sidecar 启动修复
+
+修复：
+
+- 真实 `tauri dev` stderr 确认：Tauri 的 dev resource resolver 返回 Windows verbatim
+  `\\?\C:\...\bootstrap.mjs`，Node `v24.20.0` 将该 CLI 入口参数误解析为 `C:`，并以
+  `EISDIR: illegal operation on a directory, lstat 'C:'`、exit code 1 退出。
+- 仅在传给 Node CLI 时将 verbatim drive/UNC 路径转换为等价普通 Windows 路径；runtime
+  与 bootstrap 的存在性校验、资源定位、工作目录、环境变量及启动参数保持不变。
+- 启动阶段现在限量捕获 sidecar stderr 与 exit code，后续 readiness 失败可直接报告真实
+  原因，不再只有笼统的 `sidecar exited before readiness`。
+- 新增 Tauri verbatim resource path 回归测试，并增强 bootstrap 提前退出诊断测试。
+
+局部验证：
+
+- Rust sidecar tests：PASS，11 个测试；Desktop typecheck 与 `cargo check --locked`：PASS。
+- 真实 `npm run tauri dev`：窗口持续运行，supervisor 完成随机端口/token 鉴权
+  `ping → pong` readiness 检查。
+- 真实 App 搜索 `test`：YTS 与 Nyaa 均被调用；Nyaa 增量返回 75 条结果，来源、大小、
+  seed/leech 正常显示；YTS 上游错误被独立回传且不影响 Nyaa。
+- 关闭窗口后 `tauri dev` exit code 0；此前 PID 22760 的 bundled Node sidecar 正常退出，
+  未发现 TorLink 或 `bootstrap.mjs` 遗留进程。
+- 未进入 Phase 3.4，未运行完整 Phase 3 验收、production bundle 或 torrent smoke。

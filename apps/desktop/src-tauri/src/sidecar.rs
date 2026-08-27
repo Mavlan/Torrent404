@@ -22,6 +22,7 @@ const STARTUP_TIMEOUT: Duration = Duration::from_secs(3);
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 const IPC_TIMEOUT: Duration = Duration::from_secs(1);
 const MAX_IPC_RESPONSE_BYTES: u64 = 64 * 1024;
+const MAX_STARTUP_STDERR_BYTES: u64 = 8 * 1024;
 
 #[derive(Debug, Clone)]
 pub(crate) struct SidecarPaths {
@@ -67,7 +68,10 @@ pub(crate) enum SidecarError {
     InvalidSessionToken,
     RandomToken,
     Spawn(io::Error),
-    ReadinessFailed,
+    ReadinessFailed {
+        exit_code: Option<i32>,
+        stderr: String,
+    },
     ReadinessTimeout,
     Ipc(io::Error),
     IpcProtocol,
@@ -81,7 +85,16 @@ impl fmt::Display for SidecarError {
             Self::InvalidSessionToken => formatter.write_str("sidecar session token is invalid"),
             Self::RandomToken => formatter.write_str("failed to create sidecar session token"),
             Self::Spawn(_) => formatter.write_str("failed to start bundled Node sidecar"),
-            Self::ReadinessFailed => formatter.write_str("sidecar exited before readiness"),
+            Self::ReadinessFailed { exit_code, stderr } => {
+                write!(formatter, "sidecar exited before readiness")?;
+                if let Some(code) = exit_code {
+                    write!(formatter, " (exit code {code})")?;
+                }
+                if !stderr.is_empty() {
+                    write!(formatter, ": {stderr}")?;
+                }
+                Ok(())
+            }
             Self::ReadinessTimeout => formatter.write_str("sidecar readiness timed out"),
             Self::Ipc(_) => formatter.write_str("failed to communicate with Node sidecar"),
             Self::IpcProtocol => {
@@ -163,9 +176,10 @@ impl SidecarSupervisor {
             return Err(SidecarError::InvalidSessionToken);
         }
 
+        let bootstrap_path = node_cli_path(&paths.bootstrap);
         let mut command = Command::new(&paths.node);
         command
-            .arg(&paths.bootstrap)
+            .arg(&bootstrap_path)
             .env("TORLINK_IPC_HOST", LOOPBACK_HOST)
             .env("TORLINK_IPC_TRANSPORT", IPC_TRANSPORT)
             .env(SESSION_TOKEN_ENV, &session_token)
@@ -173,7 +187,7 @@ impl SidecarSupervisor {
             .env_remove(NYAA_FIXTURE_ENV)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null());
+            .stderr(Stdio::piped());
         if let Some(path) = &config.yts_fixture {
             command.env(YTS_FIXTURE_ENV, path);
         }
@@ -188,7 +202,28 @@ impl SidecarSupervisor {
         }
 
         let mut child = command.spawn().map_err(SidecarError::Spawn)?;
-        let stdout = child.stdout.take().ok_or(SidecarError::ReadinessFailed)?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| SidecarError::ReadinessFailed {
+                exit_code: None,
+                stderr: "sidecar stdout pipe was unavailable".to_owned(),
+            })?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| SidecarError::ReadinessFailed {
+                exit_code: None,
+                stderr: "sidecar stderr pipe was unavailable".to_owned(),
+            })?;
+        let (stderr_sender, stderr_receiver) = mpsc::sync_channel(1);
+        thread::spawn(move || {
+            let mut bytes = Vec::new();
+            let _ = stderr
+                .take(MAX_STARTUP_STDERR_BYTES)
+                .read_to_end(&mut bytes);
+            let _ = stderr_sender.send(String::from_utf8_lossy(&bytes).trim().to_owned());
+        });
         let (sender, receiver) = mpsc::sync_channel(1);
         thread::spawn(move || {
             let mut line = String::new();
@@ -204,8 +239,7 @@ impl SidecarSupervisor {
         let ready = match receiver.recv_timeout(STARTUP_TIMEOUT) {
             Ok(Some(ready)) => ready,
             Ok(None) | Err(mpsc::RecvTimeoutError::Disconnected) => {
-                let _ = stop_child(&mut child, Duration::from_millis(250));
-                return Err(SidecarError::ReadinessFailed);
+                return Err(startup_failure(&mut child, &stderr_receiver));
             }
             Err(mpsc::RecvTimeoutError::Timeout) => {
                 let _ = stop_child(&mut child, Duration::from_millis(250));
@@ -327,6 +361,70 @@ impl Drop for SidecarSupervisor {
 
 fn generate_session_token() -> Result<String, SidecarError> {
     generate_random_hex(32)
+}
+
+#[cfg(target_os = "windows")]
+fn node_cli_path(path: &Path) -> PathBuf {
+    use std::{
+        ffi::OsString,
+        os::windows::ffi::{OsStrExt, OsStringExt},
+    };
+
+    const VERBATIM_PREFIX: [u16; 4] = [b'\\' as u16, b'\\' as u16, b'?' as u16, b'\\' as u16];
+    const VERBATIM_UNC_PREFIX: [u16; 8] = [
+        b'\\' as u16,
+        b'\\' as u16,
+        b'?' as u16,
+        b'\\' as u16,
+        b'U' as u16,
+        b'N' as u16,
+        b'C' as u16,
+        b'\\' as u16,
+    ];
+
+    let encoded: Vec<u16> = path.as_os_str().encode_wide().collect();
+    if encoded.starts_with(&VERBATIM_UNC_PREFIX) {
+        let normalized = [b'\\' as u16, b'\\' as u16]
+            .into_iter()
+            .chain(encoded[VERBATIM_UNC_PREFIX.len()..].iter().copied())
+            .collect::<Vec<_>>();
+        return PathBuf::from(OsString::from_wide(&normalized));
+    }
+    if encoded.starts_with(&VERBATIM_PREFIX)
+        && encoded.get(4).is_some_and(|unit| {
+            (*unit >= b'A' as u16 && *unit <= b'Z' as u16)
+                || (*unit >= b'a' as u16 && *unit <= b'z' as u16)
+        })
+        && encoded.get(5) == Some(&(b':' as u16))
+    {
+        return PathBuf::from(OsString::from_wide(&encoded[VERBATIM_PREFIX.len()..]));
+    }
+    path.to_owned()
+}
+
+#[cfg(not(target_os = "windows"))]
+fn node_cli_path(path: &Path) -> PathBuf {
+    path.to_owned()
+}
+
+fn startup_failure(child: &mut Child, stderr: &mpsc::Receiver<String>) -> SidecarError {
+    let mut exit_code = child
+        .try_wait()
+        .ok()
+        .flatten()
+        .and_then(|status| status.code());
+    if exit_code.is_none() {
+        let _ = stop_child(child, Duration::from_millis(250));
+        exit_code = child
+            .try_wait()
+            .ok()
+            .flatten()
+            .and_then(|status| status.code());
+    }
+    let stderr = stderr
+        .recv_timeout(Duration::from_millis(250))
+        .unwrap_or_default();
+    SidecarError::ReadinessFailed { exit_code, stderr }
 }
 
 fn generate_random_hex(byte_count: usize) -> Result<String, SidecarError> {
@@ -496,6 +594,26 @@ mod tests {
     }
 
     #[test]
+    fn starts_from_tauri_verbatim_resource_paths() {
+        let normal = test_paths();
+        let paths = SidecarPaths {
+            node: PathBuf::from(format!(r"\\?\{}", normal.node.display())),
+            bootstrap: PathBuf::from(format!(r"\\?\{}", normal.bootstrap.display())),
+        };
+        assert_eq!(node_cli_path(&paths.bootstrap), normal.bootstrap);
+
+        let mut supervisor = SidecarSupervisor::default();
+        supervisor
+            .start(&paths, &SidecarLaunchConfig::default())
+            .expect("sidecar should accept Tauri verbatim resource paths");
+        assert!(supervisor.is_running().expect("status should be readable"));
+        assert_eq!(
+            supervisor.stop().expect("sidecar should stop"),
+            StopOutcome::Graceful
+        );
+    }
+
+    #[test]
     fn streams_yts_and_nyaa_fixture_results_over_authenticated_ipc() {
         let config = SidecarLaunchConfig {
             session_token: None,
@@ -649,7 +767,13 @@ mod tests {
             .start(&paths, &SidecarLaunchConfig::default())
             .expect_err("missing bootstrap must fail");
 
-        assert!(matches!(error, SidecarError::ReadinessFailed));
+        match error {
+            SidecarError::ReadinessFailed { exit_code, stderr } => {
+                assert_eq!(exit_code, Some(1));
+                assert!(stderr.contains("missing-bootstrap.mjs"));
+            }
+            other => panic!("expected readiness failure, received {other:?}"),
+        }
     }
 
     #[test]
