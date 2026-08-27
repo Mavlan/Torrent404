@@ -117,3 +117,21 @@
 
 - Core 与 Protocol typecheck：PASS。
 - `SearchAggregator.test.ts`：PASS，5 个测试。
+
+## 2026-08-27 — Phase 2.3.1 YTS Provider Adapter
+
+选择 YTS 作为首个 adapter：其单一 JSON 响应直接包含 infohash、大小和 swarm
+数据，不需要 HTML/RSS 解析、详情页请求、认证或反爬处理，迁移成本最低且结构清晰。
+
+完成：
+
+- 新增独立 `YtsProvider`，复用现有 provider、registry 与 aggregator 契约。
+- 严格校验并小写化 40 位十六进制 infohash，生成规范 magnet。
+- 逐条跳过无效 hash/结构，并为缺失或畸形的可选字段提供安全默认值。
+- 网络层仅执行普通 JSON 请求并传递 `AbortSignal`，不含绕过逻辑。
+- 测试使用本地合成的合法 fixture，不访问实时公网。
+
+局部验证：
+
+- Core 与 Protocol typecheck：PASS。
+- `YtsProvider.test.ts`：PASS，3 个测试。

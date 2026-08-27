@@ -1,0 +1,22 @@
+{
+  "status": "ok",
+  "data": {
+    "movie_count": 1,
+    "movies": [
+      {
+        "title": "Public Domain Test Film",
+        "title_long": "Public Domain Test Film (2026)",
+        "torrents": [
+          {
+            "hash": "ABCDEF0123456789ABCDEF0123456789ABCDEF01",
+            "quality": "1080p",
+            "type": "web",
+            "size_bytes": 1048576,
+            "seeds": 12,
+            "peers": 3
+          }
+        ]
+      }
+    ]
+  }
+}

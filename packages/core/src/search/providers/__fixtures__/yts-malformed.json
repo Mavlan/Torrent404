@@ -1,0 +1,32 @@
+{
+  "status": "ok",
+  "data": {
+    "movies": [
+      null,
+      {
+        "title": "Wrong torrents shape",
+        "torrents": "not-an-array"
+      },
+      {
+        "title": "Missing hash",
+        "torrents": [{ "quality": "720p" }]
+      },
+      {
+        "title": "Invalid hash",
+        "torrents": [{ "hash": "not-an-infohash" }]
+      },
+      {
+        "torrents": [
+          {
+            "hash": "FEDCBA9876543210FEDCBA9876543210FEDCBA98",
+            "quality": 1080,
+            "type": "",
+            "size_bytes": -1,
+            "seeds": "many",
+            "peers": null
+          }
+        ]
+      }
+    ]
+  }
+}
