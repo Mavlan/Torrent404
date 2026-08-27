@@ -263,3 +263,33 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 - Protocol 与 Desktop typecheck：PASS。
 - `cargo check`：PASS，无 warning。
 - 未运行全量验收、Tauri production bundle、真实 torrent smoke，未进入 Phase 3.3。
+
+## 2026-08-27 — Phase 3.3 Search IPC
+
+完成：
+
+- 在 IPC v1 定义 `search.start`、`search.poll`、`search.cancel` 及 search result、
+  provider status、增量 event 和结构化 error DTO。
+- Rust 使用 128-bit 随机值创建唯一 search request ID；所有搜索 command 继续通过
+  Phase 3.2 的 loopback HTTP 与 session token 鉴权。
+- Node sidecar 直接实例化现有 `ProviderRegistry`、`YtsProvider`、`NyaaProvider` 与
+  `SearchAggregator`；构建资源只复制 Core 搜索模块，不引入 WebTorrent runtime。
+- search session 以最多 25 个 event 的 cursor poll 增量返回结果，不等待全部 provider；
+  provider error/timeout 独立回传，完成 session 有 60 秒兜底清理。
+- `search.cancel` 将 AbortSignal 传播到 aggregator/providers；UI 新搜索会取消旧 request，
+  包括旧 start 响应晚于新搜索的竞态。
+- 搜索页改为真实 Tauri IPC，增量展示 YTS/Nyaa 来源、大小、seed 和 leech，并显示
+  provider 搜索中/完成/error/timeout/cancelled 状态。
+- Sidecar 构建阶段从 Core 输出中只复制四个搜索运行模块；本地 fixture 注入环境变量
+  由 Rust 显式清除，仅测试配置可以重新设置。
+
+局部验证：
+
+- Protocol IPC tests：PASS，1 个测试。
+- Core SearchAggregator/provider integration tests：PASS，2 个文件、6 个测试。
+- Node search session tests：PASS，3 个测试（增量、失败/超时隔离、取消）。
+- Desktop UI/Tauri resource tests：PASS，2 个文件、7 个测试。
+- Rust authenticated sidecar tests：PASS，10 个测试，包含 YTS + Nyaa 合法本地 fixture
+  经真实 authenticated IPC 增量返回与 request ID 唯一性。
+- Protocol/Core/Desktop typecheck 与 `cargo check --locked`：PASS。
+- 未运行全量验收、production bundle 或真实 torrent smoke，未进入 Phase 3.4。

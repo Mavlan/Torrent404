@@ -37,8 +37,38 @@ const sidecarDirectory = path.join(
   "sidecar",
 );
 const destination = path.join(sidecarDirectory, "node.exe");
+const sidecarCoreDirectory = path.join(sidecarDirectory, "core");
+const coreOutputDirectory = path.join(repositoryRoot, "packages", "core", "dist", "search");
+const typescriptCompiler = path.join(
+  repositoryRoot,
+  "node_modules",
+  "typescript",
+  "bin",
+  "tsc",
+);
 
 await mkdir(sidecarDirectory, { recursive: true });
-await copyFile(runtimeSource, destination);
+if (path.resolve(runtimeSource) !== path.resolve(destination)) {
+  await copyFile(runtimeSource, destination);
+}
+await promisify(execFile)(process.execPath, [
+  typescriptCompiler,
+  "-p",
+  path.join(repositoryRoot, "packages", "core", "tsconfig.build.json"),
+], { cwd: repositoryRoot, windowsHide: true });
+await mkdir(sidecarCoreDirectory, { recursive: true });
+for (const [source, target] of [
+  ["ProviderRegistry.js", "ProviderRegistry.js"],
+  ["SearchAggregator.js", "SearchAggregator.js"],
+  [path.join("providers", "NyaaProvider.js"), "NyaaProvider.js"],
+  [path.join("providers", "YtsProvider.js"), "YtsProvider.js"],
+]) {
+  await copyFile(
+    path.join(coreOutputDirectory, source),
+    path.join(sidecarCoreDirectory, target),
+  );
+}
 
-process.stdout.write(`Prepared bundled Node sidecar runtime ${REQUIRED_NODE_VERSION}\n`);
+process.stdout.write(
+  `Prepared bundled Node sidecar runtime ${REQUIRED_NODE_VERSION} and Core search modules\n`,
+);

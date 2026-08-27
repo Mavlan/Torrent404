@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde::Deserialize;
+use serde_json::{json, Value};
 use std::{
     error::Error,
     fmt,
@@ -16,6 +16,8 @@ const LOOPBACK_HOST: &str = "127.0.0.1";
 const IPC_TRANSPORT: &str = "http";
 const IPC_PROTOCOL_VERSION: u32 = 1;
 const SESSION_TOKEN_ENV: &str = "TORLINK_SESSION_TOKEN";
+const YTS_FIXTURE_ENV: &str = "TORLINK_YTS_FIXTURE";
+const NYAA_FIXTURE_ENV: &str = "TORLINK_NYAA_FIXTURE";
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(3);
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 const IPC_TIMEOUT: Duration = Duration::from_secs(1);
@@ -42,6 +44,8 @@ pub(crate) struct SidecarLaunchConfig {
     /// Tests may inject a deterministic value. Normal launches always generate
     /// a new 256-bit token and pass it only through the child environment.
     pub(crate) session_token: Option<String>,
+    pub(crate) yts_fixture: Option<PathBuf>,
+    pub(crate) nyaa_fixture: Option<PathBuf>,
 }
 
 #[derive(Clone)]
@@ -120,13 +124,6 @@ impl ReadySignal {
     }
 }
 
-#[derive(Serialize)]
-struct IpcRequest<'a> {
-    #[serde(rename = "protocolVersion")]
-    protocol_version: u32,
-    command: &'a str,
-}
-
 #[derive(Debug, Deserialize)]
 struct IpcResponse {
     ok: bool,
@@ -172,9 +169,17 @@ impl SidecarSupervisor {
             .env("TORLINK_IPC_HOST", LOOPBACK_HOST)
             .env("TORLINK_IPC_TRANSPORT", IPC_TRANSPORT)
             .env(SESSION_TOKEN_ENV, &session_token)
+            .env_remove(YTS_FIXTURE_ENV)
+            .env_remove(NYAA_FIXTURE_ENV)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null());
+        if let Some(path) = &config.yts_fixture {
+            command.env(YTS_FIXTURE_ENV, path);
+        }
+        if let Some(path) = &config.nyaa_fixture {
+            command.env(NYAA_FIXTURE_ENV, path);
+        }
 
         #[cfg(target_os = "windows")]
         {
@@ -214,7 +219,7 @@ impl SidecarSupervisor {
         });
         self.child = Some(child);
 
-        let ping = self.command("ping");
+        let ping = self.command("ping", json!({}));
         if !matches!(
             ping,
             Ok(IpcResponse {
@@ -231,13 +236,17 @@ impl SidecarSupervisor {
         Ok(())
     }
 
-    fn command(&self, command: &str) -> Result<IpcResponse, SidecarError> {
+    fn command(&self, command: &str, fields: Value) -> Result<IpcResponse, SidecarError> {
         let endpoint = self.endpoint.as_ref().ok_or(SidecarError::IpcProtocol)?;
-        let body = serde_json::to_string(&IpcRequest {
-            protocol_version: IPC_PROTOCOL_VERSION,
-            command,
-        })
-        .map_err(|_| SidecarError::IpcProtocol)?;
+        let mut request = serde_json::Map::from_iter([
+            ("protocolVersion".into(), json!(IPC_PROTOCOL_VERSION)),
+            ("command".into(), json!(command)),
+        ]);
+        let Value::Object(fields) = fields else {
+            return Err(SidecarError::IpcProtocol);
+        };
+        request.extend(fields);
+        let body = serde_json::to_string(&request).map_err(|_| SidecarError::IpcProtocol)?;
         let response = send_ipc_request(endpoint, &endpoint.session_token, &body)?;
         if response.status_code != 200 {
             return Err(SidecarError::IpcProtocol);
@@ -251,6 +260,31 @@ impl SidecarSupervisor {
             return Err(SidecarError::IpcProtocol);
         }
         Ok(response)
+    }
+
+    pub(crate) fn start_search(&self, query: &str) -> Result<Value, SidecarError> {
+        let request_id = format!("search-{}", generate_random_hex(16)?);
+        self.command(
+            "search.start",
+            json!({ "requestId": request_id, "query": query }),
+        )?
+        .result
+        .ok_or(SidecarError::IpcProtocol)
+    }
+
+    pub(crate) fn poll_search(&self, request_id: &str, cursor: u64) -> Result<Value, SidecarError> {
+        self.command(
+            "search.poll",
+            json!({ "requestId": request_id, "cursor": cursor }),
+        )?
+        .result
+        .ok_or(SidecarError::IpcProtocol)
+    }
+
+    pub(crate) fn cancel_search(&self, request_id: &str) -> Result<Value, SidecarError> {
+        self.command("search.cancel", json!({ "requestId": request_id }))?
+            .result
+            .ok_or(SidecarError::IpcProtocol)
     }
 
     #[cfg(test)]
@@ -292,7 +326,11 @@ impl Drop for SidecarSupervisor {
 }
 
 fn generate_session_token() -> Result<String, SidecarError> {
-    let mut random_bytes = [0_u8; 32];
+    generate_random_hex(32)
+}
+
+fn generate_random_hex(byte_count: usize) -> Result<String, SidecarError> {
+    let mut random_bytes = vec![0_u8; byte_count];
     getrandom::fill(&mut random_bytes).map_err(|_| SidecarError::RandomToken)?;
     let mut token = String::with_capacity(random_bytes.len() * 2);
     for byte in random_bytes {
@@ -399,11 +437,23 @@ mod tests {
     }
 
     fn started_supervisor() -> SidecarSupervisor {
+        started_supervisor_with_config(&SidecarLaunchConfig::default())
+    }
+
+    fn started_supervisor_with_config(config: &SidecarLaunchConfig) -> SidecarSupervisor {
         let mut supervisor = SidecarSupervisor::default();
         supervisor
-            .start(&test_paths(), &SidecarLaunchConfig::default())
+            .start(&test_paths(), config)
             .expect("sidecar should start");
         supervisor
+    }
+
+    fn search_fixture(name: &str) -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../packages/core/src/search/providers/__fixtures__")
+            .join(name)
+            .canonicalize()
+            .expect("search fixture should exist")
     }
 
     fn raw_request(supervisor: &SidecarSupervisor, token: &str, body: &str) -> HttpResponse {
@@ -426,7 +476,9 @@ mod tests {
 
         assert_ne!(port, 0);
         assert!(is_valid_session_token(token));
-        let health = supervisor.command("health").expect("health should succeed");
+        let health = supervisor
+            .command("health", json!({}))
+            .expect("health should succeed");
         assert!(health.ok);
         assert_eq!(health.protocol_version, IPC_PROTOCOL_VERSION);
         assert_eq!(health.command.as_deref(), Some("health"));
@@ -441,6 +493,68 @@ mod tests {
             supervisor.stop().expect("sidecar should stop"),
             StopOutcome::Graceful
         );
+    }
+
+    #[test]
+    fn streams_yts_and_nyaa_fixture_results_over_authenticated_ipc() {
+        let config = SidecarLaunchConfig {
+            session_token: None,
+            yts_fixture: Some(search_fixture("yts-normal.json")),
+            nyaa_fixture: Some(search_fixture("nyaa-normal.xml")),
+        };
+        let mut supervisor = started_supervisor_with_config(&config);
+        let started = supervisor
+            .start_search("legal fixture")
+            .expect("search should start");
+        let request_id = started["requestId"]
+            .as_str()
+            .expect("search should return request ID");
+        let mut cursor = 0;
+        let mut events = Vec::new();
+        let deadline = Instant::now() + Duration::from_secs(2);
+
+        loop {
+            let poll = supervisor
+                .poll_search(request_id, cursor)
+                .expect("search poll should succeed");
+            cursor = poll["nextCursor"]
+                .as_u64()
+                .expect("poll should return a cursor");
+            events.extend(
+                poll["events"]
+                    .as_array()
+                    .expect("poll should return events")
+                    .iter()
+                    .cloned(),
+            );
+            if poll["done"] == true {
+                break;
+            }
+            assert!(Instant::now() < deadline, "fixture search should complete");
+            thread::sleep(Duration::from_millis(10));
+        }
+
+        let sources: Vec<_> = events
+            .iter()
+            .filter(|event| event["type"] == "search.result")
+            .filter_map(|event| event["result"]["source"].as_str())
+            .collect();
+        assert!(sources.contains(&"yts"));
+        assert!(sources.contains(&"nyaa"));
+        assert!(events
+            .iter()
+            .any(|event| { event["type"] == "search.complete" && event["cancelled"] == false }));
+        let second = supervisor
+            .start_search("second fixture")
+            .expect("second search should start");
+        let second_request_id = second["requestId"]
+            .as_str()
+            .expect("second search should return request ID");
+        assert_ne!(request_id, second_request_id);
+        supervisor
+            .cancel_search(second_request_id)
+            .expect("second search should cancel");
+        supervisor.stop().expect("sidecar should stop");
     }
 
     #[test]

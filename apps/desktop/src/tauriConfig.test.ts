@@ -9,10 +9,12 @@ describe("Tauri Windows bundle configuration", () => {
     expect(config.bundle.windows.wix.language).toBe("zh-CN");
   });
 
-  it("bundles the pinned Node runtime and sidecar bootstrap as resources", () => {
+  it("bundles the pinned runtime, bootstrap, and Core search modules", () => {
     expect(config.bundle.resources).toEqual({
       "sidecar/node.exe": "sidecar/node.exe",
       "sidecar/bootstrap.mjs": "sidecar/bootstrap.mjs",
+      "sidecar/search-service.mjs": "sidecar/search-service.mjs",
+      "sidecar/core/": "sidecar/core/",
     });
   });
 });

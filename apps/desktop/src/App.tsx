@@ -1,6 +1,13 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { zhCN } from "@torlink/i18n";
-import type { DownloadTask } from "@torlink/protocol";
+import type {
+  DownloadTask,
+  SearchIpcEvent,
+  SearchProviderState,
+  SearchProviderStatus,
+  SearchResult,
+} from "@torlink/protocol";
+import { desktopSearchClient, type SearchClient } from "./searchClient";
 
 type Page = "search" | "downloading" | "completed" | "settings" | "about";
 type IconName = "search" | "arrow" | "check" | "settings" | "info" | "folder" | "shield";
@@ -13,8 +20,34 @@ const navItems: ReadonlyArray<{ id: Page; label: string; icon: IconName; count?:
   { id: "about", label: zhCN["nav.about"], icon: "info" },
 ];
 
-const providers = ["FitGirl", "YTS", "TPB", "1337x", "EZTV", "Nyaa", "SubsPlease"];
+const providers = [
+  { id: "yts", displayName: "YTS" },
+  { id: "nyaa", displayName: "Nyaa" },
+] as const;
 const noTasks: DownloadTask[] = [];
+
+function formatBytes(value = 0): string {
+  if (value < 1_024) return `${value} B`;
+  const units = ["KiB", "MiB", "GiB", "TiB"];
+  let amount = value;
+  let unit = -1;
+  do {
+    amount /= 1_024;
+    unit += 1;
+  } while (amount >= 1_024 && unit < units.length - 1);
+  return `${amount >= 10 ? amount.toFixed(0) : amount.toFixed(1)} ${units[unit]}`;
+}
+
+function providerStateLabel(state: SearchProviderState | undefined): string {
+  if (!state) return "待命";
+  return {
+    searching: "搜索中",
+    complete: "完成",
+    error: "错误",
+    timeout: "超时",
+    cancelled: "已取消",
+  }[state];
+}
 
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, ReactNode> = {
@@ -53,18 +86,106 @@ function Metric({ label, value, unit }: { label: string; value: string; unit?: s
   );
 }
 
-function App() {
+interface AppProps {
+  searchClient?: SearchClient;
+}
+
+function App({ searchClient = desktopSearchClient }: AppProps) {
   const [page, setPage] = useState<Page>("search");
   const [query, setQuery] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [theme, setTheme] = useState<"system" | "light" | "dark">("system");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [providerStatuses, setProviderStatuses] = useState<Record<string, SearchProviderStatus>>({});
+  const [searchState, setSearchState] = useState<"idle" | "searching" | "complete" | "error">("idle");
+  const activeSearch = useRef<{ generation: number; requestId: string | null }>({
+    generation: 0,
+    requestId: null,
+  });
 
   const activeLabel = useMemo(() => navItems.find((item) => item.id === page)?.label ?? "搜索", [page]);
+
+  useEffect(() => () => {
+    activeSearch.current.generation += 1;
+    const requestId = activeSearch.current.requestId;
+    if (requestId) void searchClient.cancel(requestId).catch(() => undefined);
+  }, [searchClient]);
+
+  const applySearchEvents = (events: SearchIpcEvent[]) => {
+    const incomingResults: SearchResult[] = [];
+    const incomingStatuses: SearchProviderStatus[] = [];
+    for (const event of events) {
+      if (event.type === "search.result") incomingResults.push(event.result);
+      if (event.type === "search.provider-status") incomingStatuses.push(event.status);
+      if (event.type === "search.error") {
+        setSearchState("error");
+        setNotice(event.error.message);
+      }
+    }
+    if (incomingResults.length > 0) {
+      setSearchResults((current) => [...current, ...incomingResults]);
+    }
+    if (incomingStatuses.length > 0) {
+      setProviderStatuses((current) => {
+        const next = { ...current };
+        for (const status of incomingStatuses) next[status.providerId] = status;
+        return next;
+      });
+    }
+  };
+
+  const runSearch = async (value: string) => {
+    const generation = activeSearch.current.generation + 1;
+    const previousRequestId = activeSearch.current.requestId;
+    activeSearch.current = { generation, requestId: null };
+    setSearchResults([]);
+    setProviderStatuses({});
+    setSearchState("searching");
+    setNotice(null);
+
+    try {
+      if (previousRequestId) {
+        await searchClient.cancel(previousRequestId).catch(() => undefined);
+      }
+      if (activeSearch.current.generation !== generation) return;
+
+      const started = await searchClient.start(value);
+      if (activeSearch.current.generation !== generation) {
+        await searchClient.cancel(started.requestId).catch(() => undefined);
+        return;
+      }
+      activeSearch.current.requestId = started.requestId;
+
+      let cursor = 0;
+      while (activeSearch.current.generation === generation) {
+        const poll = await searchClient.poll(started.requestId, cursor);
+        if (activeSearch.current.generation !== generation) return;
+        applySearchEvents(poll.events);
+        cursor = poll.nextCursor;
+        if (poll.done) {
+          activeSearch.current.requestId = null;
+          setSearchState((current) => current === "error" ? current : "complete");
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 40));
+      }
+    } catch {
+      if (activeSearch.current.generation === generation) {
+        activeSearch.current.requestId = null;
+        setSearchState("error");
+        setNotice("本机搜索服务暂时不可用，请稍后重试。");
+      }
+    }
+  };
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const value = query.trim();
-    setNotice(value ? `“${value}”已进入本机搜索队列，核心将在下一阶段接通。` : "输入关键词、Magnet 或 infohash 后再试。");
+    if (!value) {
+      setNotice("输入关键词、Magnet 或 infohash 后再试。");
+      return;
+    }
+    void runSearch(value);
   };
 
   return (
@@ -96,7 +217,7 @@ function App() {
           <Icon name="shield" />
           <div><strong>{zhCN["status.localOnly"]}</strong><span>无中央代理服务</span></div>
         </div>
-        <p className="version-label">v0.1.0 · PHASE 1</p>
+        <p className="version-label">v0.1.0 · PHASE 3</p>
       </aside>
 
       <main className="workspace">
@@ -131,14 +252,50 @@ function App() {
 
               <section className="provider-line" aria-label="搜索来源">
                 <span>来源矩阵</span>
-                <div>{providers.map((provider) => <b key={provider}><i />{provider}</b>)}</div>
+                <div>{providers.map((provider) => {
+                  const status = providerStatuses[provider.id];
+                  return (
+                    <b key={provider.id} data-state={status?.state ?? "idle"}>
+                      <i />{provider.displayName}<small>{providerStateLabel(status?.state)}</small>
+                    </b>
+                  );
+                })}</div>
               </section>
 
-              <section className="empty-stage search-empty" aria-labelledby="search-empty-title">
-                <div className="empty-index">00</div>
-                <div><p className="section-kicker">WAITING FOR A QUERY</p><h2 id="search-empty-title">{zhCN["search.emptyTitle"]}</h2><p>{zhCN["search.emptyBody"]}</p></div>
-                <span className="corner-mark" aria-hidden="true">⌁</span>
-              </section>
+              {searchResults.length > 0 ? (
+                <section className="search-results" aria-label="搜索结果">
+                  <header><span>RESULT STREAM</span><strong>{String(searchResults.length).padStart(2, "0")}</strong></header>
+                  {searchResults.map((result) => (
+                    <article className="search-result" key={result.id}>
+                      <div>
+                        <span className="result-source">{result.source}</span>
+                        <h2>{result.title}</h2>
+                        <p>{result.category ?? "未分类"} · {formatBytes(result.sizeBytes)}</p>
+                      </div>
+                      <dl>
+                        <div><dt>SEED</dt><dd>{result.seeders ?? 0}</dd></div>
+                        <div><dt>LEECH</dt><dd>{result.leechers ?? 0}</dd></div>
+                      </dl>
+                    </article>
+                  ))}
+                </section>
+              ) : (
+                <section className="empty-stage search-empty" aria-labelledby="search-empty-title">
+                  <div className="empty-index">00</div>
+                  <div>
+                    <p className="section-kicker">{searchState === "searching" ? "SEARCHING YTS + NYAA" : "WAITING FOR A QUERY"}</p>
+                    <h2 id="search-empty-title">
+                      {searchState === "searching"
+                        ? "正在等待首批结果"
+                        : searchState === "complete"
+                          ? "没有找到匹配结果"
+                          : zhCN["search.emptyTitle"]}
+                    </h2>
+                    <p>{searchState === "searching" ? "结果会在各来源返回时立即出现。" : zhCN["search.emptyBody"]}</p>
+                  </div>
+                  <span className="corner-mark" aria-hidden="true">⌁</span>
+                </section>
+              )}
             </>
           ) : null}
 
@@ -195,4 +352,3 @@ function App() {
 }
 
 export default App;
-
