@@ -29,6 +29,10 @@
   "bundle": {
     "active": true,
     "targets": ["nsis", "msi"],
+    "resources": {
+      "sidecar/node.exe": "sidecar/node.exe",
+      "sidecar/bootstrap.mjs": "sidecar/bootstrap.mjs"
+    },
     "windows": {
       "wix": {
         "language": "zh-CN"

@@ -6,9 +6,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prepare:sidecar": "node ../../scripts/prepare-sidecar.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run",
-    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "build": "npm run prepare:sidecar && tsc --noEmit -p tsconfig.json && vite build",
     "preview": "vite preview",
     "tauri": "tauri"
   },

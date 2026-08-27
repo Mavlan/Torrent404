@@ -10,6 +10,7 @@ apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
 apps/desktop/src-tauri/binaries/*.exe
 apps/desktop/src-tauri/binaries/*-pc-windows-msvc
+apps/desktop/src-tauri/sidecar/node.exe
 
 # Editors and OS files
 .idea/
@@ -24,4 +25,3 @@ Thumbs.db
 work/
 outputs/
 *.log
-

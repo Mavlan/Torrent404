@@ -215,3 +215,27 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 - 下载边界：`TorrentManager` 只依赖 `TorrentEngine`，所有状态转换均通过
   `DownloadTaskModel`。
 - Phase 2 验收结论：PASS；未进入 Phase 3。
+
+## 2026-08-27 — Phase 3.1 Sidecar Bootstrap
+
+完成：
+
+- 构建时校验并复制精确 Node `v24.20.0` 到 Tauri resources；版本不符立即失败，
+  Release 用户不依赖系统 Node.js。
+- 新增最小 Node bootstrap，仅声明未来 `http`、`127.0.0.1`、随机 session token
+  环境接口；本步骤不开放端口、不实现 IPC command。
+- bootstrap 拒绝 `0.0.0.0` 等非 IPv4 loopback host，readiness 不输出 token。
+- Rust `SidecarSupervisor` 在 Tauri setup 启动 sidecar，验证 readiness，并在退出时
+  发送 `shutdown`、限时等待，必要时强制终止。
+- stdin guardian 在父进程退出或崩溃导致管道关闭时让 sidecar 自行结束；supervisor
+  `Drop` 再提供兜底清理，防止孤儿进程。
+- 启动失败不会留下已生成的子进程，错误正文不包含未来 session token。
+
+局部验证：
+
+- Rust sidecar lifecycle tests：PASS，6 个测试（正常启动/退出、runtime/bootstrap
+  失败、loopback 限制、guardian EOF、Drop orphan 清理）。
+- Tauri resource 配置 tests：PASS，2 个测试。
+- Desktop typecheck：PASS。
+- `cargo check --locked`：PASS，无 warning。
+- 未运行全量验收、真实 torrent smoke，未进入 Phase 3.2。
