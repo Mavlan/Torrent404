@@ -90,3 +90,16 @@
 
 - Phase 1.5 安全门槛通过，Phase 2 Core 基线为 `webtorrent@3.0.21` + 最小 tracker fork。
 - Phase 2 业务代码不得直接 import WebTorrent。
+
+## 2026-08-27 — Phase 2.1 Provider Foundation
+
+完成：
+
+- 定义传输和 UI 无关的 `SearchProvider` 增量搜索契约。
+- 建立只读 `ProviderRegistry`，验证规范 ID、非空展示名/分类和重复 ID。
+- registry 只负责注册与发现；并发、超时、失败隔离和结果去重留给 Phase 2.2。
+
+局部验证：
+
+- Core typecheck：PASS。
+- `ProviderRegistry.test.ts`：PASS，3 个测试。
