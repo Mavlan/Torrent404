@@ -37,15 +37,15 @@ describe("NyaaProvider", () => {
     const results = await collect(aggregator.search("  open animation  "));
 
     expect(results).toEqual([{
-      id: "nyaa:abcdef0123456789abcdef0123456789abcdef01",
+      id: "nyaa:0123456789abcdef0123456789abcdef01234567",
       title: "Open Animation & Test [1080p]",
       source: "nyaa",
-      infoHash: "abcdef0123456789abcdef0123456789abcdef01",
+      infoHash: "0123456789abcdef0123456789abcdef01234567",
       category: "anime",
       sizeBytes: 1_610_612_736,
       seeders: 42,
       leechers: 7,
-      magnet: "magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01&dn=Open%20Animation%20%26%20Test%20%5B1080p%5D",
+      magnet: "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Open%20Animation%20%26%20Test%20%5B1080p%5D",
     }]);
     const requestedUrl = fetchImpl.mock.calls[0]?.[0] as URL;
     expect(requestedUrl.searchParams.get("page")).toBe("rss");

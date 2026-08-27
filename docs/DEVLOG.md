@@ -187,3 +187,31 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 
 - Core 与 Protocol typecheck：PASS。
 - `TorrentManager.test.ts`：PASS，6 个测试。
+
+## 2026-08-27 — Phase 2 Final Acceptance Gate
+
+验收发现与修复：
+
+- 首次 Tauri production build 已生成 release binary 与 NSIS，但 WiX MSI 因默认
+  code page 1252 无法编码中文产品元数据而报 `LGHT0311`。
+- 将 WiX installer locale 显式设为 `zh-CN`，并新增配置回归测试；随后同一次
+  Tauri build 成功生成 NSIS 与 `涌流_0.1.0_x64_zh-CN.msi`。
+- 新增 YTS JSON + Nyaa RSS 双 adapter 本地集成测试，确认二者可同时通过
+  `ProviderRegistry` 与 `SearchAggregator` 流式输出规范结果。
+
+最终验证（Node `v24.20.0`）：
+
+- 全 workspace TypeScript typecheck：PASS。
+- 全量自动化 tests：PASS，13 个测试文件、41 个测试。
+- production build：PASS。
+- `npm audit --omit=dev`：0 vulnerabilities；full audit：0 vulnerabilities。
+- `cargo check --locked`：PASS。
+- Tauri Windows production build：PASS；release EXE、NSIS、zh-CN MSI 均生成。
+- WebTorrent 合法自生成 torrent smoke：PASS；覆盖所有输入、真实下载、进度、
+  TCP/UDP tracker/DHT/peer discovery、完成做种、shutdown 与 restart/restore。
+- 依赖边界：只有 `@torlink/core` 声明 WebTorrent，直接 import 仅存在于
+  `WebTorrentAdapter.ts`。
+- 搜索边界：YTS + Nyaa 聚合 PASS；provider timeout/error 隔离测试 PASS。
+- 下载边界：`TorrentManager` 只依赖 `TorrentEngine`，所有状态转换均通过
+  `DownloadTaskModel`。
+- Phase 2 验收结论：PASS；未进入 Phase 3。

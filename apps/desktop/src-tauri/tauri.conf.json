@@ -30,6 +30,9 @@
     "active": true,
     "targets": ["nsis", "msi"],
     "windows": {
+      "wix": {
+        "language": "zh-CN"
+      },
       "nsis": {
         "installMode": "currentUser"
       }
