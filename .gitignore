@@ -1,0 +1,27 @@
+# JavaScript / TypeScript
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Rust / Tauri
+target/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/binaries/*.exe
+apps/desktop/src-tauri/binaries/*-pc-windows-msvc
+
+# Editors and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local and generated files
+.env
+.env.*
+!.env.example
+work/
+outputs/
+*.log
+
