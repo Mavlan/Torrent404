@@ -582,3 +582,23 @@ Windows production bundle 与 sidecar：
 - provider preferences 与 Desktop persistence/UI：17 PASS；i18n：2 PASS；Desktop typecheck：PASS。
 - 未改 Rust/Tauri 代码，因此未运行不必要的 Cargo check；未运行全量 tests、production bundle、
   audit、torrent smoke 或下一阶段 adapter 工作。
+
+## 2026-08-29 — Phase 4.3 Chinese Movies / TV / Games / Software Provider Reconnaissance
+
+完成：
+
+- 按产品当前缺口独立调查 Movies/TV、Games、Software，暂停 AnimeGarden adapter 且不再扩展 Anime
+  来源；只访问公开页面、API/RSS 和普通匿名 HTTP，不注册、不使用 key/token、不绕过访问控制。
+- 形成 `docs/GENERAL_PROVIDER_RECONNAISSANCE.md`，逐项记录中文搜索、匿名访问、接口/直接 magnet、
+  分类、schema/error、反爬、当前可达性、实现/维护成本、重复度及法律/声誉/商标风险。
+- v0.1 最小推荐集合为 Internet Archive + FOSS Torrents：前者填补公共领域/档案 Movies/TV，并可
+  补充历史 Games/Software；后者以公开 RSS 填补自由开源 Games/Software。未找到适合默认内置且能
+  覆盖主流中文 Movies/TV 的来源，该产品缺口保持明确，不用高风险索引强行填满。
+- Knaben 的匿名 JSON、Unicode query、分类和直接 magnet 技术条件良好，但聚合 The Pirate Bay、
+  1337x 等来源，不适合作为公开项目默认来源；EZTV 不支持关键词 API；Public Domain Torrents 的
+  遗留 HTML 和 OpenGames 不提供 torrent，也均未进入推荐集。
+
+文档验证：
+
+- 本阶段没有代码或依赖改动，按要求未运行 tests、typecheck、Cargo、build、audit 或 torrent smoke；
+  仅执行文档 diff/check 和提交完整性检查。
