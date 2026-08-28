@@ -45,6 +45,7 @@ export interface DownloadTask {
   uploadSpeed: number;
   downloaded: number;
   total: number;
+  peers?: number;
   etaSeconds?: number;
   savePath: string;
   error?: string;

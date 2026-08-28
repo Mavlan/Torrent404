@@ -136,8 +136,40 @@ describe("TorrentManager", () => {
       uploadSpeed: 300,
       downloaded: 80,
       total: 200,
+      peers: 3,
       etaSeconds: 25,
     });
+  });
+
+  it("refreshes all task snapshots and keeps paused speed and ETA idle", async () => {
+    const { engine, manager } = await addedManager();
+    engine.snapshots.set("task-1", snapshot({
+      progress: 0.25,
+      downloaded: 25,
+      downloadSpeed: 4_000,
+      uploadSpeed: 500,
+      timeRemaining: 30_000,
+      peers: 4,
+    }));
+
+    expect(manager.snapshots()[0]).toMatchObject({
+      progress: 0.25,
+      downloaded: 25,
+      downloadSpeed: 4_000,
+      uploadSpeed: 500,
+      peers: 4,
+      etaSeconds: 30,
+    });
+    expect(manager.pause("task-1")).toBe(true);
+    expect(manager.snapshots()[0]).toMatchObject({
+      status: "paused",
+      progress: 0.25,
+      downloaded: 25,
+      downloadSpeed: 0,
+      uploadSpeed: 0,
+      peers: 4,
+    });
+    expect(manager.snapshots()[0]).not.toHaveProperty("etaSeconds");
   });
 
   it("maps completion to seeding and normalizes finished counters", async () => {

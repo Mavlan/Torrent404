@@ -171,6 +171,10 @@ export class DownloadService {
     return { taskId, removed: true };
   }
 
+  list() {
+    return { tasks: this.#manager.snapshots() };
+  }
+
   #existingTask(input) {
     const taskId = typeof input?.taskId === "string" ? input.taskId.trim() : "";
     if (taskId.length === 0 || taskId.length > 500) {

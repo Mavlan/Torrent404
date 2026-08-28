@@ -455,3 +455,34 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 - authenticated sidecar controls Rust 集成测试：PASS，覆盖 pause/resume/remove、非法转换和
   missing task；Protocol/i18n/Core/Desktop typecheck 与 `cargo check --locked`：PASS。
 - 未运行 Phase 3 全量验收、production bundle、audit 或真实 torrent smoke；未进入 Phase 3.5。
+
+## 2026-08-28 — Phase 3.5 Live Download Progress
+
+完成：
+
+- authenticated IPC v1 新增 `download.list`，sidecar 只通过 `DownloadService → TorrentManager.snapshots()`
+  读取任务，未建立第二套 transport，也未让 UI/Rust handler 直接接触 WebTorrent。
+- `TorrentManager` 将 engine snapshot 的 progress、downloaded/total、上下行速度、ETA、Peers、
+  completion 和 status 统一映射回 `DownloadTaskModel`；paused snapshot 固定为 0 speed 与无 ETA。
+- Desktop 在“下载中”页面激活时立即拉取 snapshot，之后每 750ms 串行 polling；离开页面停止，
+  重新进入立即刷新，瞬时 IPC 失败保留最后一次有效快照。
+- 下载任务卡新增双语实时进度、已下载/总大小、上下行速度、ETA、Peers、状态与可访问进度条；
+  error 使用产品化文案，不暴露 engine stack。
+- 实机 smoke 定位并修复 Desktop 将 Tauri `download_list` 结果体误当完整 IPC envelope 的解析问题。
+- WebTorrent 的原生 `pause()` 不会终止既有 wire；Adapter 现在暂停时关闭活动 peer wire，恢复时
+  主动 tracker update，确保已下载字节真正停止且 resume 能立即重新发现 peer。
+
+局部验证：
+
+- Protocol IPC/schema：7 PASS；TorrentManager/DownloadTaskModel：15 PASS；WebTorrentAdapter/
+  TorrentManager：13 PASS；Node download service：9 PASS；Desktop App：11 PASS。
+- authenticated Rust download IPC 集成测试：PASS；Protocol/i18n/Core/Desktop typecheck：PASS；
+  `cargo check --locked`：PASS；`git diff --check`：PASS。
+- 真实 `npm run tauri dev` 使用锁定 Node `v24.20.0`、本机 UDP tracker 与自建合法 32 MiB
+  torrent：进度从 55.4% 增至 59.4%，速度约 162 KiB/s、Peers=1、ETA=2m；pause 后连续观察
+  保持 59.4% 且速度为 0、ETA 为“—”、Peers=0；resume 后恢复到 71 KiB/s、Peers=1，最终
+  达到 100% / 33,554,432 bytes 并显示 completed。输出 SHA-256 与自建源数据一致：
+  `1CBD22E11BC209926B1E050D644779BA4105D7A023109C3B78BB35EDF5C7C292`。
+- 页面切换后重新进入下载页会立即取得最新快照；关闭桌面窗口后未发现遗留 `bootstrap.mjs`
+  Node sidecar。
+- 未运行 Phase 3 全量验收、production bundle、全量 audit 或公网 torrent smoke；未进入下一阶段。

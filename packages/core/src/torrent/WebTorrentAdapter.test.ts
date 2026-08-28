@@ -29,6 +29,8 @@ class FakeTorrent extends EventEmitter {
   paused = false;
   path = "C:\\downloads";
   files = [{ name: this.name, path: this.name, length: 3 }];
+  wires = [{ destroy: vi.fn() }, { destroy: vi.fn() }];
+  discovery = { tracker: { update: vi.fn() } };
 
   pause(): void { this.paused = true; }
   resume(): void { this.paused = false; }
@@ -136,7 +138,9 @@ describe("WebTorrentAdapter", () => {
 
     expect(adapter.pause("task-1")).toBe(true);
     expect(adapter.snapshot("task-1")?.paused).toBe(true);
+    expect(client.torrents[0]!.wires.every((wire) => wire.destroy.mock.calls.length === 1)).toBe(true);
     expect(adapter.resume("task-1")).toBe(true);
+    expect(client.torrents[0]!.discovery.tracker.update).toHaveBeenCalledOnce();
     expect(await adapter.remove("task-1")).toBe(true);
     expect(await adapter.remove("missing")).toBe(false);
     await adapter.destroy();

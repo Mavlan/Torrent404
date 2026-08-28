@@ -12,6 +12,10 @@ import type {
 
 type WebTorrentClient = WebTorrent;
 type ClientFactory = (options: WebTorrentOptions) => WebTorrentClient;
+type ControllableTorrent = Torrent & {
+  wires?: Array<{ destroy(): void }>;
+  discovery?: { tracker?: { update(): void } };
+};
 
 export interface WebTorrentAdapterOptions {
   maxConnections?: number;
@@ -135,6 +139,10 @@ export class WebTorrentAdapter implements TorrentEngine {
     const torrent = this.#torrents.get(id);
     if (!torrent) return false;
     torrent.pause();
+    // WebTorrent's pause flag prevents new peer work, but already-open wires
+    // can continue filling their request pipeline. Closing those wires makes
+    // pause observable immediately; resume() drains the queued peers again.
+    for (const wire of [...((torrent as ControllableTorrent).wires ?? [])]) wire.destroy();
     return true;
   }
 
@@ -142,6 +150,7 @@ export class WebTorrentAdapter implements TorrentEngine {
     const torrent = this.#torrents.get(id);
     if (!torrent) return false;
     torrent.resume();
+    (torrent as ControllableTorrent).discovery?.tracker?.update();
     return true;
   }
 

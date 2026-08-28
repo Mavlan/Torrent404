@@ -13,6 +13,7 @@ export const IPC_COMMANDS = [
   "download.pause",
   "download.resume",
   "download.remove",
+  "download.list",
 ] as const;
 
 export type IpcCommand = (typeof IPC_COMMANDS)[number];
@@ -81,6 +82,10 @@ export type DownloadControlCommand =
 export interface DownloadControlRequest extends IpcRequest {
   command: DownloadControlCommand;
   taskId: string;
+}
+
+export interface DownloadListRequest extends IpcRequest {
+  command: "download.list";
 }
 
 export interface IpcErrorResponse {
@@ -211,6 +216,15 @@ export interface DownloadRemoveResponse {
   };
 }
 
+export interface DownloadListResponse {
+  ok: true;
+  protocolVersion: typeof IPC_PROTOCOL_VERSION;
+  command: "download.list";
+  result: {
+    tasks: DownloadTask[];
+  };
+}
+
 export type IpcResponse =
   | IpcErrorResponse
   | PingResponse
@@ -221,4 +235,5 @@ export type IpcResponse =
   | SearchCancelResponse
   | DownloadAddResponse
   | DownloadStateControlResponse
-  | DownloadRemoveResponse;
+  | DownloadRemoveResponse
+  | DownloadListResponse;

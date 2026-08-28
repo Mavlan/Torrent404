@@ -57,16 +57,47 @@ function createTorrentEngine() {
   if (torrentEngineFixture !== "success" && torrentEngineFixture !== "failure") {
     return new WebTorrentAdapter();
   }
-  const tasks = new Set();
+  const tasks = new Map();
   return {
     async add(request) {
       if (torrentEngineFixture === "failure") throw new Error("fixture engine failure");
-      tasks.add(request.id);
+      tasks.set(request.id, { request, paused: false });
     },
     async remove(id) { return tasks.delete(id); },
-    pause(id) { return tasks.has(id); },
-    resume(id) { return tasks.has(id); },
-    snapshot() { return null; },
+    pause(id) {
+      const task = tasks.get(id);
+      if (!task) return false;
+      task.paused = true;
+      return true;
+    },
+    resume(id) {
+      const task = tasks.get(id);
+      if (!task) return false;
+      task.paused = false;
+      return true;
+    },
+    snapshot(id) {
+      const task = tasks.get(id);
+      if (!task) return null;
+      const infoHash = task.request.source.match(/btih:([a-f\d]{40})/i)?.[1] ?? "";
+      return {
+        id,
+        name: "Legal fixture",
+        infoHash,
+        path: task.request.path,
+        progress: 0.5,
+        downloadSpeed: task.paused ? 0 : 2_048,
+        uploadSpeed: task.paused ? 0 : 256,
+        downloaded: 21,
+        uploaded: 4,
+        length: 42,
+        timeRemaining: task.paused ? Number.POSITIVE_INFINITY : 10_000,
+        peers: 3,
+        done: false,
+        paused: task.paused,
+        files: [],
+      };
+    },
     listenPort() { return null; },
     async destroy() { tasks.clear(); },
   };
@@ -224,6 +255,16 @@ async function handleCommand(response, request) {
         protocolVersion: IPC_PROTOCOL_VERSION,
         command: "download.remove",
         result: await downloadService.remove(request),
+      });
+      return;
+    }
+
+    if (request.command === "download.list") {
+      sendJson(response, 200, {
+        ok: true,
+        protocolVersion: IPC_PROTOCOL_VERSION,
+        command: "download.list",
+        result: downloadService.list(),
       });
       return;
     }

@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import type { DownloadTask } from "@torlink/protocol";
 import App from "./App";
 import type { DownloadClient } from "./downloadClient";
 import type { SearchClient } from "./searchClient";
@@ -27,6 +28,7 @@ function shellDownloadClient(): DownloadClient {
     pause: vi.fn().mockRejectedValue(new Error("pause not expected")),
     resume: vi.fn().mockRejectedValue(new Error("resume not expected")),
     remove: vi.fn().mockRejectedValue(new Error("remove not expected")),
+    list: vi.fn().mockResolvedValue({ tasks: [] }),
     directory: vi.fn().mockResolvedValue("C:\\Users\\Tester\\Downloads\\涌流404"),
   };
 }
@@ -59,6 +61,77 @@ describe("desktop shell", () => {
     render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
     await user.click(screen.getByRole("button", { name: /下载中/ }));
     expect(screen.getByRole("heading", { name: "下载队列安静待命" })).toBeInTheDocument();
+  });
+
+  it("polls live task snapshots and refreshes them when re-entering Downloads", async () => {
+    let snapshot: DownloadTask = {
+      id: "download-live",
+      infoHash: "abcdef0123456789abcdef0123456789abcdef01",
+      name: "Legal live fixture",
+      status: "downloading",
+      progress: 0.25,
+      downloadSpeed: 131_072,
+      uploadSpeed: 65_536,
+      downloaded: 262_144,
+      total: 1_048_576,
+      peers: 3,
+      etaSeconds: 90,
+      savePath: "C:\\Downloads\\涌流404",
+    };
+    const downloads: DownloadClient = {
+      add: vi.fn().mockRejectedValue(new Error("add not expected")),
+      pause: vi.fn().mockRejectedValue(new Error("pause not expected")),
+      resume: vi.fn().mockRejectedValue(new Error("resume not expected")),
+      remove: vi.fn().mockRejectedValue(new Error("remove not expected")),
+      list: vi.fn().mockImplementation(async () => ({ tasks: [{ ...snapshot }] })),
+      directory: vi.fn().mockResolvedValue("C:\\Downloads\\涌流404"),
+    };
+    const user = userEvent.setup();
+    render(<App searchClient={shellClient()} downloadClient={downloads} />);
+
+    await user.click(screen.getByRole("button", { name: /下载中/ }));
+    expect(await screen.findByText("25.0%")).toBeInTheDocument();
+    expect(screen.getByText("256 KiB / 1.0 MiB")).toBeInTheDocument();
+    expect(screen.getAllByText("128 KiB/s").length).toBeGreaterThan(0);
+    expect(screen.getByText("64 KiB/s")).toBeInTheDocument();
+    expect(screen.getByText("2m")).toBeInTheDocument();
+    expect(screen.getByText("Peers")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
+
+    snapshot = {
+      ...snapshot,
+      status: "paused",
+      progress: 0.5,
+      downloaded: 524_288,
+      downloadSpeed: 999_999,
+      uploadSpeed: 999_999,
+      etaSeconds: 5,
+    };
+    expect(await screen.findByText("50.0%", {}, { timeout: 1_500 })).toBeInTheDocument();
+    expect(screen.getByText("已暂停")).toBeInTheDocument();
+    expect(screen.getAllByText("0 B/s")).toHaveLength(2);
+    expect(screen.getByText("—")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "搜索" }));
+    const { etaSeconds: _etaSeconds, ...withoutEta } = snapshot;
+    snapshot = {
+      ...withoutEta,
+      status: "seeding",
+      progress: 1,
+      downloaded: 1_048_576,
+      downloadSpeed: 0,
+      uploadSpeed: 32_768,
+    };
+    await user.click(screen.getByRole("button", { name: /下载中/ }));
+    expect(await screen.findByText("100%")).toBeInTheDocument();
+    expect(screen.getByText("做种中")).toBeInTheDocument();
+    expect(screen.getByText("1.0 MiB / 1.0 MiB")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "搜索" }));
+    snapshot = { ...snapshot, status: "error", error: "private engine stack" };
+    await user.click(screen.getByRole("button", { name: /下载中/ }));
+    expect(await screen.findByText("下载遇到错误，请稍后重试或移除任务。")).toBeInTheDocument();
+    expect(screen.queryByText("private engine stack")).not.toBeInTheDocument();
   });
 
   it("states the privacy boundary in About", async () => {
@@ -242,6 +315,7 @@ describe("desktop shell", () => {
         command: "download.remove",
         result: { taskId: "download-public-domain", removed: true },
       }),
+      list: vi.fn().mockRejectedValue(new Error("poll not expected")),
       directory: vi.fn().mockResolvedValue("C:\\Users\\Tester\\Downloads\\涌流404"),
     };
     const user = userEvent.setup();
@@ -319,6 +393,7 @@ describe("desktop shell", () => {
       pause: vi.fn().mockRejectedValue(new Error("pause not expected")),
       resume: vi.fn().mockRejectedValue(new Error("resume not expected")),
       remove: vi.fn().mockRejectedValue(new Error("remove not expected")),
+      list: vi.fn().mockRejectedValue(new Error("poll not expected")),
       directory: vi.fn().mockResolvedValue("C:\\Downloads\\涌流404"),
     };
     const user = userEvent.setup();

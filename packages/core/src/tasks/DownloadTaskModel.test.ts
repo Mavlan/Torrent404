@@ -47,6 +47,7 @@ describe("DownloadTaskModel", () => {
       uploadSpeed: 0,
       downloaded: 0,
       total: 1_024,
+      peers: 0,
       savePath: "C:\\Downloads",
     });
   });

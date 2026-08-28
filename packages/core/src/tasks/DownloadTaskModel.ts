@@ -60,6 +60,7 @@ export function createDownloadTask(input: NewDownloadTask): DownloadTask {
     uploadSpeed: 0,
     downloaded: 0,
     total,
+    peers: 0,
     savePath: requiredField("savePath", input.savePath),
   };
 }

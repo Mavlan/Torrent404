@@ -204,10 +204,19 @@ nav { position: relative; z-index: 1; display: grid; gap: 4px; }
 .page-heading > span { padding-bottom: 8px; color: var(--muted); font-size: 12px; }
 .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 24px; background: var(--line); border: 1px solid var(--line); }
 .download-task-list { display: grid; gap: 1px; margin-top: 18px; border: 1px solid var(--line); background: var(--line); }
-.download-task { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: center; min-height: 96px; padding: 18px 22px; background: var(--surface-2); }
+.download-task { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: center; min-height: 150px; padding: 18px 22px; background: var(--surface-2); }
 .download-task span { color: var(--signal); font: 650 9px/1 "Bahnschrift", sans-serif; letter-spacing: .12em; text-transform: uppercase; }
 .download-task h2 { margin: 8px 0 6px; overflow-wrap: anywhere; font-size: 16px; }
 .download-task p { margin: 0; color: var(--muted); font-size: 11px; }
+.task-summary { min-width: 0; }
+.task-progress-heading { display: flex; justify-content: space-between; align-items: baseline; margin-top: 12px; }
+.task-progress-heading small, .task-stats dt { color: var(--faint); font: 600 8px/1 "Bahnschrift", sans-serif; letter-spacing: .09em; text-transform: uppercase; }
+.task-progress-heading strong { color: var(--signal); font: 600 11px/1 "Cascadia Mono", monospace; }
+.task-progress { height: 4px; margin-top: 7px; overflow: hidden; background: var(--line); }
+.task-progress i { display: block; height: 100%; background: var(--signal); transition: width .3s ease; }
+.task-stats { display: grid; grid-template-columns: repeat(5, minmax(80px, auto)); gap: 16px; margin: 14px 0 0; }
+.task-stats dd { margin: 5px 0 0; color: var(--text); font: 500 10px/1.2 "Cascadia Mono", monospace; }
+.download-task p.task-error { margin-top: 12px; color: #e79693; }
 .task-actions { display: grid; justify-items: end; gap: 12px; }
 .task-controls { display: flex; gap: 8px; }
 .task-controls button { min-width: 72px; padding: 8px 12px; border: 1px solid var(--line-bright); background: transparent; color: var(--text); font: 650 10px/1 "Bahnschrift", sans-serif; letter-spacing: .08em; cursor: pointer; }
@@ -302,7 +311,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--signal); ou
   .page-heading > span { margin-top: 10px; }
   .metrics { grid-template-columns: 1fr; }
   .download-task { grid-template-columns: 1fr; }
+  .task-actions { justify-items: start; }
   .task-identity { justify-items: start; }
+  .task-stats { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
   .setting-panel, .theme-panel, .language-panel, .source-settings-panel { grid-template-columns: 1fr; }
   .setting-icon { display: none; }
   .segmented { width: 100%; }

@@ -30,6 +30,7 @@ export const downloadTaskSchema = z.object({
   uploadSpeed: z.number().nonnegative(),
   downloaded: z.number().nonnegative(),
   total: z.number().nonnegative(),
+  peers: z.number().int().nonnegative().optional(),
   etaSeconds: z.number().nonnegative().optional(),
   savePath: nonEmpty,
   error: nonEmpty.optional(),

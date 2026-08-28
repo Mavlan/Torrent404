@@ -62,6 +62,11 @@ export class TorrentManager {
     return [...this.#tasks.values()].map(cloneTask);
   }
 
+  snapshots(): readonly DownloadTask[] {
+    for (const id of this.#tasks.keys()) this.refresh(id);
+    return this.list();
+  }
+
   async add(request: AddDownloadRequest): Promise<DownloadTask> {
     if (this.#tasks.has(request.id.trim())) {
       throw new Error(`Download task already exists: ${request.id.trim()}`);
@@ -184,7 +189,12 @@ export class TorrentManager {
       uploadSpeed: nonNegative(snapshot.uploadSpeed, task.uploadSpeed),
       downloaded: nonNegative(snapshot.downloaded, task.downloaded),
       total: nonNegative(snapshot.length, task.total),
+      peers: Math.floor(nonNegative(snapshot.peers, task.peers ?? 0)),
     };
+
+    if (task.status === "paused") {
+      return { ...mapped, downloadSpeed: 0, uploadSpeed: 0 };
+    }
 
     return Number.isFinite(snapshot.timeRemaining) && snapshot.timeRemaining >= 0
       ? { ...mapped, etaSeconds: snapshot.timeRemaining / 1_000 }

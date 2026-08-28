@@ -373,6 +373,17 @@ impl SidecarSupervisor {
         Ok(response.body)
     }
 
+    pub(crate) fn list_downloads(&self) -> Result<Value, SidecarError> {
+        let result = self
+            .command("download.list", json!({}))?
+            .result
+            .ok_or(SidecarError::IpcProtocol)?;
+        if !result["tasks"].is_array() {
+            return Err(SidecarError::IpcProtocol);
+        }
+        Ok(result)
+    }
+
     pub(crate) fn control_download(
         &self,
         command: &str,
@@ -808,6 +819,15 @@ mod tests {
         let task_id = added["result"]["taskId"]
             .as_str()
             .expect("download should have task ID");
+        let snapshots = supervisor
+            .list_downloads()
+            .expect("task snapshots should return over authenticated IPC");
+        assert_eq!(snapshots["tasks"][0]["progress"], 0.5);
+        assert_eq!(snapshots["tasks"][0]["downloaded"], 21);
+        assert_eq!(snapshots["tasks"][0]["downloadSpeed"], 2_048);
+        assert_eq!(snapshots["tasks"][0]["uploadSpeed"], 256);
+        assert_eq!(snapshots["tasks"][0]["peers"], 3);
+        assert_eq!(snapshots["tasks"][0]["etaSeconds"], 10);
         let invalid_transition = supervisor
             .control_download("download.resume", task_id)
             .expect("invalid transition should remain a structured IPC response");
@@ -819,6 +839,12 @@ mod tests {
             .control_download("download.pause", task_id)
             .expect("pause should return a structured response");
         assert_eq!(paused["result"]["task"]["status"], "paused");
+        let paused_snapshots = supervisor
+            .list_downloads()
+            .expect("paused snapshots should return over authenticated IPC");
+        assert_eq!(paused_snapshots["tasks"][0]["downloadSpeed"], 0);
+        assert_eq!(paused_snapshots["tasks"][0]["uploadSpeed"], 0);
+        assert!(paused_snapshots["tasks"][0]["etaSeconds"].is_null());
         let resumed = supervisor
             .control_download("download.resume", task_id)
             .expect("resume should return a structured response");

@@ -48,6 +48,10 @@ class FakeManager {
     return task ? { ...task } : undefined;
   }
 
+  snapshots() {
+    return [...this.tasks.values()].map((task) => ({ ...task }));
+  }
+
   pause(id) {
     if (!this.pauseResult || !this.tasks.has(id)) return false;
     this.tasks.set(id, { ...this.tasks.get(id), status: "paused" });
@@ -190,6 +194,22 @@ test("pauses, resumes, and removes tasks only through the manager", async () => 
   });
   assert.deepEqual(manager.removed, [{ id: "download-test", options: undefined }]);
   assert.equal(manager.get("download-test"), undefined);
+});
+
+test("returns refreshed task snapshots from the manager", async () => {
+  const { manager, service: downloads } = service();
+  const added = await downloads.add({ magnet: MAGNET, downloadDir: "C:\\Downloads" });
+  manager.tasks.set(added.taskId, {
+    ...manager.tasks.get(added.taskId),
+    progress: 0.5,
+    downloaded: 21,
+    downloadSpeed: 2_048,
+    uploadSpeed: 256,
+    peers: 3,
+    etaSeconds: 10,
+  });
+
+  assert.deepEqual(downloads.list().tasks[0], manager.get(added.taskId));
 });
 
 test("returns structured missing-task, invalid-transition, and engine control errors", async () => {

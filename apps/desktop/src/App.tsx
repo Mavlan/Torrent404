@@ -73,6 +73,21 @@ function formatBytes(value = 0): string {
   return `${amount >= 10 ? amount.toFixed(0) : amount.toFixed(1)} ${units[unit]}`;
 }
 
+function formatEta(value: number | undefined): string {
+  if (value === undefined || !Number.isFinite(value) || value < 0) return "—";
+  const seconds = Math.ceil(value);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ${minutes % 60}m`;
+}
+
+function progressPercent(value: number): string {
+  const percent = Math.min(100, Math.max(0, value * 100));
+  return `${percent > 0 && percent < 100 ? percent.toFixed(1) : percent.toFixed(0)}%`;
+}
+
 function providerStateLabel(state: SearchProviderState | undefined, t: Translator): string {
   if (!state) return t("provider.ready");
   const labelKeys: Record<SearchProviderState, MessageKey> = {
@@ -226,6 +241,27 @@ function App({
     const requestId = activeSearch.current.requestId;
     if (requestId) void searchClient.cancel(requestId).catch(() => undefined);
   }, [searchClient]);
+
+  useEffect(() => {
+    if (page !== "downloading") return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = async () => {
+      try {
+        const response = await downloadClient.list();
+        if (active) setDownloadTasks(response.tasks);
+      } catch {
+        // Keep the last known task snapshot during a transient local IPC failure.
+      } finally {
+        if (active) timer = setTimeout(() => void poll(), 750);
+      }
+    };
+    void poll();
+    return () => {
+      active = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [downloadClient, page]);
 
   const applySearchEvents = (events: SearchIpcEvent[]) => {
     const incomingResults: SearchResult[] = [];
@@ -410,6 +446,8 @@ function App({
       : searchState === "complete"
         ? t("search.noResultsBody")
         : t("search.emptyBody");
+  const activeDownloadSpeed = downloadTasks.reduce((sum, task) => sum + task.downloadSpeed, 0);
+  const connectedPeers = downloadTasks.reduce((sum, task) => sum + (task.peers ?? 0), 0);
 
   return (
     <div className="app-shell" data-theme={theme} lang={locale}>
@@ -440,7 +478,7 @@ function App({
           <Icon name="shield" />
           <div><strong>{t("status.localOnly")}</strong><span>{t("status.localOnlyBody")}</span></div>
         </div>
-        <p className="version-label">v0.1.0 · PHASE 3.4</p>
+        <p className="version-label">v0.1.0 · PHASE 3.5</p>
       </aside>
 
       <main className="workspace">
@@ -557,12 +595,24 @@ function App({
           {page === "downloading" ? (
             <>
               <div className="page-heading"><p className="section-kicker">{t("downloads.kicker")}</p><h1>{t("downloads.title")}</h1><span>{t("downloads.subtitle")}</span></div>
-              <div className="metrics"><Metric label={t("downloads.metricTasks")} value={String(downloadTasks.length).padStart(2, "0")} /><Metric label={t("downloads.metricSpeed")} value="0" unit="B/s" /><Metric label={t("downloads.metricPeers")} value="00" /></div>
+              <div className="metrics"><Metric label={t("downloads.metricTasks")} value={String(downloadTasks.length).padStart(2, "0")} /><Metric label={t("downloads.metricSpeed")} value={formatBytes(activeDownloadSpeed)} unit="/s" /><Metric label={t("downloads.metricPeers")} value={String(connectedPeers).padStart(2, "0")} /></div>
               {downloadTasks.length === 0 ? <EmptyState kind="downloads" t={t} /> : (
                 <section className="download-task-list" aria-label={t("downloads.taskList")}>
                   {downloadTasks.map((task) => (
                     <article className="download-task" key={task.id}>
-                      <div><span>{taskStatusLabel(task, t)}</span><h2>{task.name}</h2><p>{formatBytes(task.total)}</p></div>
+                      <div className="task-summary">
+                        <span>{taskStatusLabel(task, t)}</span><h2>{task.name}</h2>
+                        <div className="task-progress-heading"><small>{t("downloads.progress")}</small><strong>{progressPercent(task.progress)}</strong></div>
+                        <div aria-label={t("downloads.progress")} aria-valuemax={100} aria-valuemin={0} aria-valuenow={Math.round(task.progress * 100)} className="task-progress" role="progressbar"><i style={{ width: progressPercent(task.progress) }} /></div>
+                        <dl className="task-stats">
+                          <div><dt>{t("downloads.transferred")}</dt><dd>{formatBytes(task.downloaded)} / {task.total > 0 ? formatBytes(task.total) : t("downloads.unknownTotal")}</dd></div>
+                          <div><dt>{t("downloads.downloadSpeed")}</dt><dd>{formatBytes(task.status === "paused" ? 0 : task.downloadSpeed)}/s</dd></div>
+                          <div><dt>{t("downloads.uploadSpeed")}</dt><dd>{formatBytes(task.status === "paused" ? 0 : task.uploadSpeed)}/s</dd></div>
+                          <div><dt>{t("downloads.eta")}</dt><dd>{task.status === "paused" ? "—" : formatEta(task.etaSeconds)}</dd></div>
+                          <div><dt>{t("downloads.peers")}</dt><dd>{task.peers ?? 0}</dd></div>
+                        </dl>
+                        {task.status === "error" ? <p className="task-error">{t("downloads.taskError")}</p> : null}
+                      </div>
                       <div className="task-actions">
                         <div className="task-identity"><small>{t("downloads.taskId")}</small><code>{task.id}</code></div>
                         <div className="task-controls">

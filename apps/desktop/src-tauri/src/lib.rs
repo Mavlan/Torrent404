@@ -109,6 +109,11 @@ fn download_remove(
     control_download("download.remove", task_id, sidecar)
 }
 
+#[tauri::command]
+fn download_list(sidecar: State<'_, Mutex<SidecarSupervisor>>) -> Result<Value, String> {
+    use_sidecar(sidecar, SidecarSupervisor::list_downloads)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
@@ -121,7 +126,8 @@ pub fn run() {
             download_add,
             download_pause,
             download_resume,
-            download_remove
+            download_remove,
+            download_list
         ])
         .setup(|app| {
             let resource_dir = app.path().resource_dir()?;

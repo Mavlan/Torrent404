@@ -13,6 +13,6 @@
 9. **Phase 3.4.1 Download Runtime Fix**：为搜索 adapter 生成的最小 magnet 补充 WebTorrent tracker fallback，确保真实任务持续 peer discovery 与写盘；使用本地合法 torrent 完成 `tauri dev` smoke。（本提交完成）
 10. **Phase 3.4.2 Task Controls**：在 authenticated IPC v1 增加 pause/resume/remove；所有操作经 `TorrentManager` 和 `DownloadTaskModel`，remove 默认保留本地文件，桌面端提供双语按钮与删除确认。（本提交完成）
 11. **Phase 3.4.3 Magnet Direct Add**：将搜索框中的 magnet/infohash 识别为直接添加操作；保持与 Phase 3.4 相同的校验、去重与错误边界。（待执行）
-12. **Phase 3.5**：继续手册定义的后续桌面集成步骤；须另行确认后再进入。（待执行）
+12. **Phase 3.5 Live Download Progress**：通过 authenticated IPC v1 的 `download.list` 每 750ms 获取 `TorrentManager` snapshot；桌面端实时展示进度、传输量、上下行速度、ETA、Peers 和状态，并完成真实 pause/resume/completion smoke。（本提交完成）
 
-Phase 3.4.2 只实现任务控制链路；不包含持续进度 UI、删除本地文件、任务持久化、新 provider 或 Phase 3.5。
+Phase 3.5 只实现内存任务 snapshot polling 与实时展示；不包含任务持久化、删除本地文件、限速、排队优先级、新 provider、metadata/海报或 production release。
