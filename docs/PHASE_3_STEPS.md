@@ -10,7 +10,8 @@
 6. **中文 provider reconnaissance**：单独调研无需登录、验证码、付费墙、DRM 或反爬绕过的合法公开来源，记录能力、稳定性、分类与风险；不在调研步骤实现 adapter。（待执行）
 7. **中文 provider adapters**：基于 reconnaissance 结论逐个实现，每个来源使用本地 fixture、独立测试与独立提交，禁止批量迁移。（待执行）
 8. **Phase 3.4 Start Download IPC**：复用 authenticated IPC v1，通过 `TorrentManager → TorrentEngine → WebTorrentAdapter` 从搜索结果创建真实下载任务，并在“下载中”显示初始任务。（本提交完成）
-9. **Phase 3.4.1 Magnet Direct Add**：将搜索框中的 magnet/infohash 识别为直接添加操作；保持与 Phase 3.4 相同的校验、去重与错误边界。（待执行）
-10. **Phase 3.5**：继续手册定义的后续桌面集成步骤；须另行确认后再进入。（待执行）
+9. **Phase 3.4.1 Download Runtime Fix**：为搜索 adapter 生成的最小 magnet 补充 WebTorrent tracker fallback，确保真实任务持续 peer discovery 与写盘；使用本地合法 torrent 完成 `tauri dev` smoke。（本提交完成）
+10. **Phase 3.4.2 Magnet Direct Add**：将搜索框中的 magnet/infohash 识别为直接添加操作；保持与 Phase 3.4 相同的校验、去重与错误边界。（待执行）
+11. **Phase 3.5**：继续手册定义的后续桌面集成步骤；须另行确认后再进入。（待执行）
 
-Phase 3.4 仅创建任务；不包含持续进度事件、pause/resume/remove IPC、任务持久化或新 provider。
+Phase 3.4.1 只修复真实下载 runtime；不包含持续进度 UI、pause/resume/remove IPC、任务持久化或新 provider。

@@ -22,9 +22,18 @@ export interface WebTorrentAdapterOptions {
   natUpnp?: boolean | "permanent";
 }
 
+// WebTorrent only consumes trackers already present in a magnet when
+// `tracker: true` is used. Search adapters intentionally construct minimal
+// magnets from provider infohashes, so keep a small fallback set from the
+// WebTorrent project's own create-torrent defaults for public torrents.
+const DEFAULT_ANNOUNCE = [
+  "udp://tracker.opentrackr.org:1337",
+  "wss://tracker.openwebtorrent.com",
+  "wss://tracker.webtorrent.dev",
+] as const;
+
 const DEFAULT_OPTIONS: WebTorrentOptions = {
   dht: true,
-  tracker: true,
   lsd: true,
   // The optional native uTP addon kept the Node process alive after all
   // torrents and sockets were destroyed in the Phase 1.5 shutdown smoke.
@@ -57,7 +66,9 @@ export class WebTorrentAdapter implements TorrentEngine {
       ...DEFAULT_OPTIONS,
       ...(options.maxConnections === undefined ? {} : { maxConns: options.maxConnections }),
       ...(options.dht === undefined ? {} : { dht: options.dht }),
-      ...(options.tracker === undefined ? {} : { tracker: options.tracker }),
+      tracker: options.tracker === false
+        ? false
+        : { announce: [...DEFAULT_ANNOUNCE] },
       ...(options.lsd === undefined ? {} : { lsd: options.lsd }),
       ...(options.natPmp === undefined ? {} : { natPmp: options.natPmp }),
       ...(options.natUpnp === undefined ? {} : { natUpnp: options.natUpnp }),

@@ -78,7 +78,17 @@ describe("WebTorrentAdapter", () => {
     });
     client.torrents[0]!.emit("metadata");
 
-    expect(optionsSeen).toEqual([expect.objectContaining({ dht: true, tracker: true, utp: false })]);
+    expect(optionsSeen).toEqual([expect.objectContaining({
+      dht: true,
+      tracker: {
+        announce: [
+          "udp://tracker.opentrackr.org:1337",
+          "wss://tracker.openwebtorrent.com",
+          "wss://tracker.webtorrent.dev",
+        ],
+      },
+      utp: false,
+    })]);
     expect(metadata).toHaveBeenCalledWith(expect.objectContaining({
       infoHash: "0123456789abcdef0123456789abcdef01234567",
       length: 3,
@@ -95,6 +105,27 @@ describe("WebTorrentAdapter", () => {
       done: false,
     }));
     expect(adapter.listenPort()).toBe(51413);
+  });
+
+  it("allows tracker discovery to be disabled without retaining fallbacks", async () => {
+    const client = new FakeClient();
+    const optionsSeen: unknown[] = [];
+    const adapter = new TestAdapter(
+      { tracker: false },
+      (options) => {
+        optionsSeen.push(options);
+        return client as never;
+      },
+      vi.fn(),
+    );
+
+    await adapter.add({
+      id: "task-1",
+      source: "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567",
+      path: "C:\\downloads",
+    });
+
+    expect(optionsSeen).toEqual([expect.objectContaining({ tracker: false })]);
   });
 
   it("owns pause, resume, remove, and complete shutdown", async () => {

@@ -404,3 +404,30 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
   invalid magnet 与 engine failure；不访问公网或执行真实 torrent smoke。
 - Protocol/i18n/Core/Desktop typecheck：PASS；`cargo check --locked`：PASS。
 - 未运行 Phase 3 全量验收、production bundle、audit 或真实 torrent smoke；未进入 Phase 3.5。
+
+## 2026-08-28 — Phase 3.4.1 Download Runtime Fix
+
+完成：
+
+- 确认 `download.add` 返回后 `DownloadService`、`TorrentManager`、`WebTorrentAdapter` 与
+  torrent 实例均持续存活；下载目录参数也已正确传入 WebTorrent，问题不是任务被提前释放。
+- 定位到 YTS/Nyaa 当前从 infohash 生成的最小 magnet 不包含 tracker；WebTorrent 的
+  `tracker: true` 只启用 magnet 自带 tracker，不会自动补充 discovery tracker，导致真实下载
+  过度依赖 DHT，出现长时间 0 peers、无 metadata/无写盘。
+- `WebTorrentAdapter` 现在为 public torrent 配置来自 WebTorrent `create-torrent` 基线的
+  小型 fallback tracker 集，同时保留 DHT/LSD；显式 `tracker: false` 仍会完全关闭 tracker，
+  不改变 adapter/engine 架构边界。
+- 补充 adapter 回归测试，锁定默认 fallback 与显式关闭行为。下载页的 speed/peers 仍是
+  Phase 3.4 静态占位，本步骤不引入实时进度 UI。
+
+局部验证：
+
+- WebTorrentAdapter tests：4 PASS；Core typecheck：PASS。
+- 锁定 Node `v24.20.0` 的既有本地 WebTorrent smoke：TCP peer、UDP tracker、DHT、metadata、
+  progress、completion、写盘、restart/restore 全部 PASS。
+- 真实 `npm run tauri dev` 使用本机 UDP tracker 和自建合法 4 MiB torrent fixture：
+  authenticated sidecar 创建任务后实际写入 4,194,304 bytes，任务 snapshot 达到 seeding，
+  文件 SHA-256 为 `06AC5FE0874BF6E13F4769115CA0CA5CF1C1586F970759D08300F2E9F553C91F`；
+  退出后无遗留 sidecar。
+- 未实现 pause/resume/remove、实时进度 UI 或 Phase 3.5；未运行完整验收、production bundle、
+  audit 或公网版权不明 torrent smoke。
