@@ -18,6 +18,7 @@ import {
 } from "@torlink/protocol";
 import { desktopDownloadClient, type DownloadClient } from "./downloadClient";
 import { isMagnetInput } from "./magnetInput";
+import { loadProviderPreferences, saveProviderPreferences } from "./providerPreferences";
 import { desktopSearchClient, type SearchClient } from "./searchClient";
 
 type Page = "search" | "downloading" | "completed" | "settings" | "about";
@@ -216,7 +217,11 @@ function App({
     void searchClient.providers().then(
       ({ providers: availableProviders }) => {
         if (!active) return;
-        setProviders(availableProviders);
+        const saved = loadProviderPreferences();
+        setProviders(availableProviders.map((provider) => ({
+          ...provider,
+          enabled: saved[provider.providerId] ?? provider.enabled,
+        })));
         setProvidersLoaded(true);
       },
       () => {
@@ -458,9 +463,13 @@ function App({
 
   const toggleProvider = (providerId: string) => {
     cancelCurrentSearch();
-    setProviders((current) => current.map((provider) => (
+    const nextProviders = providers.map((provider) => (
       provider.providerId === providerId ? { ...provider, enabled: !provider.enabled } : provider
-    )));
+    ));
+    setProviders(nextProviders);
+    saveProviderPreferences(Object.fromEntries(
+      nextProviders.map((provider) => [provider.providerId, provider.enabled]),
+    ));
     setSearchResults([]);
     setProviderStatuses({});
     setSearchState("idle");

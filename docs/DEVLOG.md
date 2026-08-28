@@ -562,3 +562,23 @@ Windows production bundle 与 sidecar：
   protocol/i18n build、`cargo fmt --check` 与 `cargo check --locked`：PASS。
 - 未运行完整 acceptance gate、production bundle、audit、大型 torrent smoke 或 `tauri dev`；既有
   Phase 3 下载、sidecar lifecycle、authenticated IPC 与 WebTorrent 架构未重构。
+
+## 2026-08-29 — Phase 4.2 Settings Persistence + Chinese Source Reconnaissance
+
+完成：
+
+- YTS/Nyaa enabled 状态保存为 WebView 同源 `localStorage` 中的版本化
+  `providerId → boolean` 映射；首次启动和缺失、损坏、版本不兼容配置均回退 registry 默认值。
+- 存储只含 provider ID 与布尔值，不保存 token、credential、URL、下载路径或其他敏感信息；不引入
+  数据库、Tauri 文件系统 command/plugin 或新增权限。新增 provider 没有旧记录时自然采用其默认值。
+- UI 初始化时合并 registry descriptor 与本机偏好，切换后立即保存；重建 Desktop UI 后仍恢复选择，
+  分类来源数和 SearchAggregator provider selection 继续使用恢复后的 enabled 状态。
+- 完成公开中文来源调查，只访问匿名公开接口，不实现 adapter、不新增抓取依赖。最终推荐
+  AnimeGarden（公开 JSON、直接 magnet、低维护）和 AniBT（有契约的公开 RSS/JSON、直接
+  magnet/infohash；因服务较新需观察期）。
+
+局部验证：
+
+- provider preferences 与 Desktop persistence/UI：17 PASS；i18n：2 PASS；Desktop typecheck：PASS。
+- 未改 Rust/Tauri 代码，因此未运行不必要的 Cargo check；未运行全量 tests、production bundle、
+  audit、torrent smoke 或下一阶段 adapter 工作。

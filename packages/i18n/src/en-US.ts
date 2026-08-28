@@ -126,7 +126,7 @@ export const enUS = {
   "settings.languageEn": "English",
   "settings.sourcesKicker": "Search sources",
   "settings.sourcesTitle": "Built-in search sources",
-  "settings.sourcesBody": "Switches apply to this session and reset when the app closes. No URLs, APIs, or code are required.",
+  "settings.sourcesBody": "Source choices are saved on this device and persist across restarts. No URLs, APIs, or code are required.",
   "settings.sourceEnabled": "Enabled",
   "settings.sourceDisabled": "Disabled",
   "settings.sourceBuiltIn": "Built in",

@@ -182,7 +182,7 @@ describe("desktop shell", () => {
     expect(client.start).not.toHaveBeenCalled();
   });
 
-  it("toggles session search sources and updates category availability", async () => {
+  it("toggles search sources and updates category availability", async () => {
     const client = shellClient();
     const user = userEvent.setup();
     render(<App searchClient={client} downloadClient={shellDownloadClient()} />);
@@ -216,6 +216,21 @@ describe("desktop shell", () => {
     await user.click(screen.getByRole("switch", { name: "Nyaa · 已停用" }));
     await user.click(screen.getByRole("button", { name: "搜索" }));
     expect(await screen.findByRole("button", { name: /动漫.*1 来源/ })).toBeInTheDocument();
+  });
+
+  it("restores persisted source choices after the desktop UI remounts", async () => {
+    const user = userEvent.setup();
+    const firstRun = render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    await user.click(await screen.findByRole("switch", { name: "Nyaa · 已启用" }));
+    firstRun.unmount();
+
+    render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    expect(await screen.findByRole("switch", { name: "Nyaa · 已停用" })).not.toBeChecked();
+    await user.click(screen.getByRole("button", { name: "搜索" }));
+    expect(await screen.findByRole("button", { name: /动漫.*暂无/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /全部.*1 来源/ })).toBeInTheDocument();
   });
 
   it("recognizes a magnet and creates a download through the existing client", async () => {

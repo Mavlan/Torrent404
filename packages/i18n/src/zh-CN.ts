@@ -124,7 +124,7 @@ export const zhCN = {
   "settings.languageEn": "English",
   "settings.sourcesKicker": "搜索来源",
   "settings.sourcesTitle": "内置搜索来源",
-  "settings.sourcesBody": "开关仅在本次运行中生效；关闭应用后恢复默认。无需填写 URL、API 或代码。",
+  "settings.sourcesBody": "来源选择保存在本机，重启后继续生效。无需填写 URL、API 或代码。",
   "settings.sourceEnabled": "已启用",
   "settings.sourceDisabled": "已停用",
   "settings.sourceBuiltIn": "内置",
