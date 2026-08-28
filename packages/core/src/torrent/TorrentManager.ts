@@ -5,7 +5,7 @@ import {
   createDownloadTask,
   transitionDownloadTask,
   type NewDownloadTask,
-} from "../tasks/DownloadTaskModel";
+} from "../tasks/DownloadTaskModel.js";
 import type {
   AddTorrentRequest,
   TorrentEngine,
@@ -23,6 +23,16 @@ export interface AddDownloadRequest extends NewDownloadTask {
 
 export interface RemoveDownloadOptions {
   deleteData?: boolean;
+}
+
+export class DuplicateTorrentError extends Error {
+  constructor(
+    readonly infoHash: string,
+    readonly existingTaskId: string,
+  ) {
+    super(`Torrent is already queued as task ${existingTaskId}`);
+    this.name = "DuplicateTorrentError";
+  }
 }
 
 function cloneTask(task: DownloadTask): DownloadTask {
@@ -58,6 +68,12 @@ export class TorrentManager {
     }
 
     const queued = createDownloadTask(request);
+    const duplicate = [...this.#tasks.values()].find(
+      (task) => task.infoHash === queued.infoHash,
+    );
+    if (duplicate) {
+      throw new DuplicateTorrentError(queued.infoHash, duplicate.id);
+    }
     this.#tasks.set(queued.id, queued);
     this.#setStatus(queued.id, "downloading");
 
@@ -126,6 +142,12 @@ export class TorrentManager {
     this.#tasks.delete(id);
     this.#resumeStatus.delete(id);
     return true;
+  }
+
+  async destroy(): Promise<void> {
+    await this.engine.destroy();
+    this.#tasks.clear();
+    this.#resumeStatus.clear();
   }
 
   #setStatus(id: string, status: Exclude<DownloadStatus, "error">): void {

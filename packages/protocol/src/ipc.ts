@@ -1,4 +1,4 @@
-import type { SearchCategory, SearchResult } from "./models";
+import type { DownloadTask, SearchCategory, SearchResult } from "./models";
 
 export const IPC_PROTOCOL_VERSION = 1 as const;
 
@@ -9,6 +9,7 @@ export const IPC_COMMANDS = [
   "search.start",
   "search.poll",
   "search.cancel",
+  "download.add",
 ] as const;
 
 export type IpcCommand = (typeof IPC_COMMANDS)[number];
@@ -21,6 +22,10 @@ export type IpcErrorCode =
   | "invalid_search_request"
   | "duplicate_request_id"
   | "search_request_not_found"
+  | "invalid_magnet"
+  | "duplicate_torrent"
+  | "download_directory_unavailable"
+  | "engine_add_failed"
   | "internal_error";
 
 export interface IpcRequest {
@@ -51,6 +56,14 @@ export interface SearchPollRequest extends IpcRequest {
 export interface SearchCancelRequest extends IpcRequest {
   command: "search.cancel";
   requestId: string;
+}
+
+export interface DownloadAddRequest extends IpcRequest {
+  command: "download.add";
+  magnet: string;
+  name?: string;
+  total?: number;
+  downloadDir: string;
 }
 
 export interface IpcErrorResponse {
@@ -151,6 +164,16 @@ export interface SearchCancelResponse {
   };
 }
 
+export interface DownloadAddResponse {
+  ok: true;
+  protocolVersion: typeof IPC_PROTOCOL_VERSION;
+  command: "download.add";
+  result: {
+    taskId: string;
+    task: DownloadTask;
+  };
+}
+
 export type IpcResponse =
   | IpcErrorResponse
   | PingResponse
@@ -158,4 +181,5 @@ export type IpcResponse =
   | SearchProvidersResponse
   | SearchStartResponse
   | SearchPollResponse
-  | SearchCancelResponse;
+  | SearchCancelResponse
+  | DownloadAddResponse;

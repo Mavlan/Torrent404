@@ -1,10 +1,13 @@
 mod sidecar;
 
+use std::path::PathBuf;
 use std::sync::Mutex;
 
 use serde_json::Value;
 use sidecar::{SidecarLaunchConfig, SidecarPaths, SidecarSupervisor};
 use tauri::{Manager, RunEvent, State};
+
+struct DownloadDirectory(PathBuf);
 
 fn use_sidecar(
     state: State<'_, Mutex<SidecarSupervisor>>,
@@ -51,6 +54,27 @@ fn search_cancel(
     use_sidecar(state, |supervisor| supervisor.cancel_search(&request_id))
 }
 
+#[tauri::command]
+fn download_directory(state: State<'_, DownloadDirectory>) -> String {
+    state.0.to_string_lossy().into_owned()
+}
+
+#[tauri::command]
+fn download_add(
+    magnet: String,
+    name: Option<String>,
+    total: Option<u64>,
+    sidecar: State<'_, Mutex<SidecarSupervisor>>,
+    directory: State<'_, DownloadDirectory>,
+) -> Result<Value, String> {
+    let supervisor = sidecar
+        .lock()
+        .map_err(|_| "sidecar supervisor is unavailable".to_owned())?;
+    supervisor
+        .add_download(&magnet, name.as_deref(), total, &directory.0)
+        .map_err(|error| error.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
@@ -58,16 +82,20 @@ pub fn run() {
             search_providers,
             search_start,
             search_poll,
-            search_cancel
+            search_cancel,
+            download_directory,
+            download_add
         ])
         .setup(|app| {
             let resource_dir = app.path().resource_dir()?;
+            let download_dir = app.path().download_dir()?.join("涌流404");
             let mut supervisor = SidecarSupervisor::default();
             supervisor.start(
                 &SidecarPaths::from_resource_dir(&resource_dir),
                 &SidecarLaunchConfig::default(),
             )?;
             app.manage(Mutex::new(supervisor));
+            app.manage(DownloadDirectory(download_dir));
             Ok(())
         })
         .build(tauri::generate_context!())

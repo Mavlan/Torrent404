@@ -372,3 +372,35 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 - 关闭窗口后 `tauri dev` exit code 0，未发现 `torlink-desktop.exe` 或 sidecar
   `bootstrap.mjs` 遗留进程。
 - 未新增 provider，未进入 Phase 3.4，未运行 production bundle、完整验收或 torrent smoke。
+
+## 2026-08-28 — Phase 3.4 Start Download IPC
+
+完成：
+
+- 在 authenticated IPC v1 增加 `download.add`；接收 magnet、可选名称/大小，由 Rust
+  注入系统 Downloads 下的“涌流404”默认目录，不允许 UI 任意指定保存路径。
+- sidecar 下载服务严格调用 `TorrentManager.add`；生产路径固定为
+  `TorrentManager → TorrentEngine → WebTorrentAdapter → webtorrent@3.0.21`，未出现
+  UI 或 IPC handler 直接操作 WebTorrent 的旁路。
+- `TorrentManager` 新增基于规范化 infohash 的确定性去重和 owned engine shutdown；
+  所有初始 queued/downloading/error 状态仍经 `DownloadTaskModel` 转换。
+- magnet 支持 40 位十六进制及 32 位 Base32 infohash；无效 magnet、重复 torrent、
+  下载目录不可用、engine add failure 均返回稳定结构化错误，消息不泄露内部 stack。
+- 默认目录在 sidecar 内安全递归创建并验证为可写目录；设置页显示 Rust 解析出的实际路径。
+- 搜索结果新增 Download 操作；缺少 magnet 时按钮禁用。创建成功后立即切换到“下载中”，
+  展示名称、大小、状态和 task ID，并提供中英文成功/失败反馈。
+- 搜索框直接粘贴 magnet 仍按搜索处理；已拆为 Phase 3.4.1，避免扩大本步骤范围。
+- sidecar 资源准备脚本开始复制既有 Core torrent/task runtime 模块，并继续使用锁定的
+  bundled Node `v24.20.0`。
+
+局部验证：
+
+- Protocol IPC：2 PASS；i18n：2 PASS；TorrentManager：7 PASS。
+- Node download service：6 PASS，覆盖 hex/Base32 magnet、目录传递与真实不可用目录、
+  duplicate、engine failure 和 shutdown。
+- Desktop UI/Tauri resource：12 PASS，覆盖可用/不可用下载按钮、任务页面、结构化错误与
+  sidecar 异常的中英文用户提示。
+- Rust authenticated download IPC：2 PASS，使用 fake TorrentEngine 验证创建、duplicate、
+  invalid magnet 与 engine failure；不访问公网或执行真实 torrent smoke。
+- Protocol/i18n/Core/Desktop typecheck：PASS；`cargo check --locked`：PASS。
+- 未运行 Phase 3 全量验收、production bundle、audit 或真实 torrent smoke；未进入 Phase 3.5。

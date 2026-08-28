@@ -7,7 +7,7 @@ import type {
   TorrentMetadata,
   TorrentSnapshot,
 } from "./TorrentEngine";
-import { TorrentManager } from "./TorrentManager";
+import { DuplicateTorrentError, TorrentManager } from "./TorrentManager";
 
 const HASH = "abcdef0123456789abcdef0123456789abcdef01";
 
@@ -17,6 +17,7 @@ class FakeTorrentEngine implements TorrentEngine {
   readonly pause = vi.fn((_id: string) => true);
   readonly resume = vi.fn((_id: string) => true);
   readonly remove = vi.fn(async (_id: string, _options?: { deleteData?: boolean }) => true);
+  readonly destroy = vi.fn(async () => undefined);
   addError: Error | undefined;
 
   async add(request: AddTorrentRequest): Promise<void> {
@@ -31,8 +32,6 @@ class FakeTorrentEngine implements TorrentEngine {
   listenPort(): number | null {
     return 51_413;
   }
-
-  async destroy(): Promise<void> {}
 
   metadata(id: string, metadata: TorrentMetadata): void {
     this.requests.get(id)?.onMetadata?.(metadata);
@@ -199,5 +198,22 @@ describe("TorrentManager", () => {
     expect(engine.remove).toHaveBeenCalledWith("task-1", { deleteData: true });
     expect(manager.get("task-1")).toBeUndefined();
     await expect(manager.remove("missing")).resolves.toBe(false);
+  });
+
+  it("rejects duplicate infohashes and destroys its owned engine", async () => {
+    const { engine, manager } = await addedManager();
+
+    const duplicate = manager.add({ ...addRequest(), id: "task-duplicate" });
+    await expect(duplicate).rejects.toBeInstanceOf(DuplicateTorrentError);
+    await expect(duplicate).rejects.toMatchObject({
+        name: "DuplicateTorrentError",
+        infoHash: HASH,
+        existingTaskId: "task-1",
+      });
+    expect(manager.list()).toHaveLength(1);
+
+    await manager.destroy();
+    expect(engine.destroy).toHaveBeenCalledOnce();
+    expect(manager.list()).toHaveLength(0);
   });
 });

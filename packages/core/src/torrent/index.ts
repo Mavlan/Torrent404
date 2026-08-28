@@ -6,7 +6,7 @@ export type {
   TorrentSnapshot,
   TorrentSource,
 } from "./TorrentEngine";
-export { TorrentManager } from "./TorrentManager";
+export { DuplicateTorrentError, TorrentManager } from "./TorrentManager";
 export type {
   AddDownloadRequest,
   RemoveDownloadOptions,

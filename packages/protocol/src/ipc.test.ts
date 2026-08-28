@@ -13,6 +13,7 @@ describe("authenticated IPC protocol", () => {
       "search.start",
       "search.poll",
       "search.cancel",
+      "download.add",
     ]);
   });
 

@@ -8,6 +8,9 @@ import { ProviderRegistry } from "./core/ProviderRegistry.js";
 import { SearchAggregator } from "./core/SearchAggregator.js";
 import { NyaaProvider } from "./core/NyaaProvider.js";
 import { YtsProvider } from "./core/YtsProvider.js";
+import { TorrentManager } from "./core/torrent/TorrentManager.js";
+import { WebTorrentAdapter } from "./core/torrent/WebTorrentAdapter.js";
+import { DownloadCommandError, DownloadService } from "./download-service.mjs";
 import { SearchCommandError, SearchService } from "./search-service.mjs";
 
 const LOOPBACK_HOST = "127.0.0.1";
@@ -37,6 +40,7 @@ function fixtureFetch(filePath, contentType) {
 
 const ytsFixture = process.env.TORLINK_YTS_FIXTURE;
 const nyaaFixture = process.env.TORLINK_NYAA_FIXTURE;
+const torrentEngineFixture = process.env.TORLINK_TORRENT_ENGINE_FIXTURE;
 const providers = [
   new YtsProvider(ytsFixture
     ? { fetchImpl: fixtureFetch(ytsFixture, "application/json") }
@@ -48,6 +52,29 @@ const providers = [
 const providerRegistry = new ProviderRegistry(providers);
 const searchAggregator = new SearchAggregator(providerRegistry);
 const searchService = new SearchService(providerRegistry, searchAggregator);
+
+function createTorrentEngine() {
+  if (torrentEngineFixture !== "success" && torrentEngineFixture !== "failure") {
+    return new WebTorrentAdapter();
+  }
+  const tasks = new Set();
+  return {
+    async add(request) {
+      if (torrentEngineFixture === "failure") throw new Error("fixture engine failure");
+      tasks.add(request.id);
+    },
+    async remove(id) { return tasks.delete(id); },
+    pause() { return false; },
+    resume() { return false; },
+    snapshot() { return null; },
+    listenPort() { return null; },
+    async destroy() { tasks.clear(); },
+  };
+}
+
+const torrentEngine = createTorrentEngine();
+const torrentManager = new TorrentManager(torrentEngine);
+const downloadService = new DownloadService(torrentManager);
 
 function sendJson(response, statusCode, body) {
   const payload = JSON.stringify(body);
@@ -78,7 +105,7 @@ function isAuthorized(header) {
   );
 }
 
-function handleCommand(response, request) {
+async function handleCommand(response, request) {
   if (
     request === null ||
     Array.isArray(request) ||
@@ -160,8 +187,18 @@ function handleCommand(response, request) {
       });
       return;
     }
+
+    if (request.command === "download.add") {
+      sendJson(response, 200, {
+        ok: true,
+        protocolVersion: IPC_PROTOCOL_VERSION,
+        command: "download.add",
+        result: await downloadService.add(request),
+      });
+      return;
+    }
   } catch (error) {
-    if (error instanceof SearchCommandError) {
+    if (error instanceof SearchCommandError || error instanceof DownloadCommandError) {
       sendError(response, error.statusCode, error.code, error.message);
     } else {
       sendError(response, 500, "internal_error", "Search command failed");
@@ -196,7 +233,7 @@ const server = http.createServer((request, response) => {
     }
 
     try {
-      handleCommand(response, JSON.parse(Buffer.concat(chunks).toString("utf8")));
+      void handleCommand(response, JSON.parse(Buffer.concat(chunks).toString("utf8")));
     } catch {
       sendError(response, 400, "malformed_request", "Request body is not valid JSON");
     }
@@ -208,30 +245,35 @@ server.on("clientError", (_error, socket) => {
 });
 
 let stopping = false;
-function shutdown(code = 0) {
+async function shutdown(code = 0) {
   if (stopping) return;
   stopping = true;
   process.exitCode = code;
   process.stdin.pause();
   searchService.shutdown();
+  try {
+    await downloadService.shutdown();
+  } catch {
+    process.stderr.write("Torrent engine shutdown failed\n");
+  }
   server.close(() => process.exit(code));
   server.closeAllConnections();
 }
 
 const control = readline.createInterface({ input: process.stdin });
 control.on("line", (line) => {
-  if (line.trim() === "shutdown") shutdown(0);
+  if (line.trim() === "shutdown") void shutdown(0);
 });
-control.on("close", () => shutdown(0));
-process.stdin.on("error", () => shutdown(0));
-process.on("SIGINT", () => shutdown(0));
-process.on("SIGTERM", () => shutdown(0));
+control.on("close", () => void shutdown(0));
+process.stdin.on("error", () => void shutdown(0));
+process.on("SIGINT", () => void shutdown(0));
+process.on("SIGTERM", () => void shutdown(0));
 
 server.listen({ host: LOOPBACK_HOST, port: 0, exclusive: true }, () => {
   const address = server.address();
   if (address === null || typeof address === "string") {
     process.stderr.write("Sidecar failed to resolve its loopback endpoint\n");
-    shutdown(1);
+    void shutdown(1);
     return;
   }
 

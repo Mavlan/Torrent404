@@ -8,6 +8,7 @@ import {
 import {
   searchCategories,
   type DownloadTask,
+  type IpcErrorCode,
   type SearchCategory,
   type SearchIpcEvent,
   type SearchProviderDescriptor,
@@ -15,6 +16,7 @@ import {
   type SearchProviderStatus,
   type SearchResult,
 } from "@torlink/protocol";
+import { desktopDownloadClient, type DownloadClient } from "./downloadClient";
 import { desktopSearchClient, type SearchClient } from "./searchClient";
 
 type Page = "search" | "downloading" | "completed" | "settings" | "about";
@@ -52,8 +54,6 @@ const localeLabelKeys: Record<Locale, MessageKey> = {
   "en-US": "settings.languageEn",
 };
 
-const noTasks: DownloadTask[] = [];
-
 function interpolate(template: string, values: Record<string, string | number>): string {
   return Object.entries(values).reduce(
     (message, [key, value]) => message.replace(`{${key}}`, String(value)),
@@ -83,6 +83,28 @@ function providerStateLabel(state: SearchProviderState | undefined, t: Translato
     cancelled: "provider.cancelled",
   };
   return t(labelKeys[state]);
+}
+
+function taskStatusLabel(task: DownloadTask, t: Translator): string {
+  const labels = {
+    queued: "task.status.queued",
+    downloading: "task.status.downloading",
+    paused: "task.status.paused",
+    completed: "task.status.completed",
+    seeding: "task.status.seeding",
+    error: "task.status.error",
+  } as const satisfies Record<DownloadTask["status"], MessageKey>;
+  return t(labels[task.status]);
+}
+
+function downloadErrorLabel(code: IpcErrorCode): MessageKey {
+  const labels: Partial<Record<IpcErrorCode, MessageKey>> = {
+    invalid_magnet: "error.invalidMagnet",
+    duplicate_torrent: "error.duplicateTorrent",
+    download_directory_unavailable: "error.downloadDirectoryUnavailable",
+    engine_add_failed: "error.engineAddFailed",
+  };
+  return labels[code] ?? "error.downloadUnavailable";
 }
 
 function Icon({ name }: { name: IconName }) {
@@ -125,9 +147,13 @@ function Metric({ label, value, unit }: { label: string; value: string; unit?: s
 
 interface AppProps {
   searchClient?: SearchClient;
+  downloadClient?: DownloadClient;
 }
 
-function App({ searchClient = desktopSearchClient }: AppProps) {
+function App({
+  searchClient = desktopSearchClient,
+  downloadClient = desktopDownloadClient,
+}: AppProps) {
   const [page, setPage] = useState<Page>("search");
   const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
   const [category, setCategory] = useState<SearchCategory>("all");
@@ -139,6 +165,9 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
   const [providers, setProviders] = useState<SearchProviderDescriptor[]>([]);
   const [providersLoaded, setProvidersLoaded] = useState(false);
   const [searchState, setSearchState] = useState<"idle" | "searching" | "complete" | "error">("idle");
+  const [downloadTasks, setDownloadTasks] = useState<DownloadTask[]>([]);
+  const [addingResultIds, setAddingResultIds] = useState<Set<string>>(new Set());
+  const [downloadDirectory, setDownloadDirectory] = useState<string | null>(null);
   const activeSearch = useRef<{ generation: number; requestId: string | null }>({
     generation: 0,
     requestId: null,
@@ -178,6 +207,15 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
       active = false;
     };
   }, [searchClient]);
+
+  useEffect(() => {
+    let active = true;
+    void downloadClient.directory().then(
+      (directory) => { if (active) setDownloadDirectory(directory); },
+      () => undefined,
+    );
+    return () => { active = false; };
+  }, [downloadClient]);
 
   useEffect(() => () => {
     activeSearch.current.generation += 1;
@@ -280,6 +318,36 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
     void runSearch(value);
   };
 
+  const addDownload = async (result: SearchResult) => {
+    if (!result.magnet || addingResultIds.has(result.id)) return;
+    setAddingResultIds((current) => new Set(current).add(result.id));
+    setNotice(null);
+    try {
+      const response = await downloadClient.add({
+        magnet: result.magnet,
+        name: result.title,
+        ...(result.sizeBytes === undefined ? {} : { total: result.sizeBytes }),
+      });
+      if (!response.ok) {
+        setNotice(downloadErrorLabel(response.error.code));
+        return;
+      }
+      setDownloadTasks((current) => current.some((task) => task.id === response.result.taskId)
+        ? current
+        : [...current, response.result.task]);
+      setPage("downloading");
+      setNotice("download.added");
+    } catch {
+      setNotice("error.downloadUnavailable");
+    } finally {
+      setAddingResultIds((current) => {
+        const next = new Set(current);
+        next.delete(result.id);
+        return next;
+      });
+    }
+  };
+
   const providerCountFor = (item: SearchCategory): number => providers.filter(
     (provider) => provider.enabled && (item === "all" || provider.categories.includes(item)),
   ).length;
@@ -325,7 +393,7 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
             >
               <Icon name={item.icon} />
               <span>{t(item.labelKey)}</span>
-              {item.count !== undefined ? <b>{String(item.count).padStart(2, "0")}</b> : null}
+              {item.count !== undefined ? <b>{String(item.id === "downloading" ? downloadTasks.length : item.count).padStart(2, "0")}</b> : null}
             </button>
           ))}
         </nav>
@@ -334,7 +402,7 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
           <Icon name="shield" />
           <div><strong>{t("status.localOnly")}</strong><span>{t("status.localOnlyBody")}</span></div>
         </div>
-        <p className="version-label">v0.1.0 · PHASE 3.3.6</p>
+        <p className="version-label">v0.1.0 · PHASE 3.4</p>
       </aside>
 
       <main className="workspace">
@@ -422,6 +490,15 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
                         <div><dt>{t("result.seed")}</dt><dd>{result.seeders ?? 0}</dd></div>
                         <div><dt>{t("result.leech")}</dt><dd>{result.leechers ?? 0}</dd></div>
                       </dl>
+                      <button
+                        className="result-download"
+                        disabled={!result.magnet || addingResultIds.has(result.id)}
+                        onClick={() => void addDownload(result)}
+                        title={result.magnet ? t("result.download") : t("result.downloadUnavailable")}
+                        type="button"
+                      >
+                        {addingResultIds.has(result.id) ? t("result.adding") : t("result.download")}
+                      </button>
                     </article>
                   ))}
                 </section>
@@ -442,8 +519,17 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
           {page === "downloading" ? (
             <>
               <div className="page-heading"><p className="section-kicker">{t("downloads.kicker")}</p><h1>{t("downloads.title")}</h1><span>{t("downloads.subtitle")}</span></div>
-              <div className="metrics"><Metric label={t("downloads.metricTasks")} value={String(noTasks.length).padStart(2, "0")} /><Metric label={t("downloads.metricSpeed")} value="0" unit="B/s" /><Metric label={t("downloads.metricPeers")} value="00" /></div>
-              <EmptyState kind="downloads" t={t} />
+              <div className="metrics"><Metric label={t("downloads.metricTasks")} value={String(downloadTasks.length).padStart(2, "0")} /><Metric label={t("downloads.metricSpeed")} value="0" unit="B/s" /><Metric label={t("downloads.metricPeers")} value="00" /></div>
+              {downloadTasks.length === 0 ? <EmptyState kind="downloads" t={t} /> : (
+                <section className="download-task-list" aria-label={t("downloads.taskList")}>
+                  {downloadTasks.map((task) => (
+                    <article className="download-task" key={task.id}>
+                      <div><span>{taskStatusLabel(task, t)}</span><h2>{task.name}</h2><p>{formatBytes(task.total)}</p></div>
+                      <div className="task-identity"><small>{t("downloads.taskId")}</small><code>{task.id}</code></div>
+                    </article>
+                  ))}
+                </section>
+              )}
             </>
           ) : null}
 
@@ -461,7 +547,7 @@ function App({ searchClient = desktopSearchClient }: AppProps) {
               <div className="settings-grid">
                 <section className="setting-panel">
                   <div className="setting-icon"><Icon name="folder" /></div>
-                  <div><p className="section-kicker">{t("settings.downloadKicker")}</p><h2>{t("settings.downloadTitle")}</h2><p>{t("settings.downloadBody")}</p><code>C:\Users\…\Downloads\涌流404</code></div>
+                  <div><p className="section-kicker">{t("settings.downloadKicker")}</p><h2>{t("settings.downloadTitle")}</h2><p>{t("settings.downloadBody")}</p><code>{downloadDirectory ?? "C:\\Users\\…\\Downloads\\涌流404"}</code></div>
                   <button type="button" onClick={() => setNotice("settings.changePending")}>{t("settings.change")}</button>
                 </section>
                 <section className="setting-panel source-settings-panel">

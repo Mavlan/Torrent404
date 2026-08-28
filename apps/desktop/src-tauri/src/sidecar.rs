@@ -18,6 +18,7 @@ const IPC_PROTOCOL_VERSION: u32 = 1;
 const SESSION_TOKEN_ENV: &str = "TORLINK_SESSION_TOKEN";
 const YTS_FIXTURE_ENV: &str = "TORLINK_YTS_FIXTURE";
 const NYAA_FIXTURE_ENV: &str = "TORLINK_NYAA_FIXTURE";
+const TORRENT_ENGINE_FIXTURE_ENV: &str = "TORLINK_TORRENT_ENGINE_FIXTURE";
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(3);
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 const IPC_TIMEOUT: Duration = Duration::from_secs(1);
@@ -47,6 +48,7 @@ pub(crate) struct SidecarLaunchConfig {
     pub(crate) session_token: Option<String>,
     pub(crate) yts_fixture: Option<PathBuf>,
     pub(crate) nyaa_fixture: Option<PathBuf>,
+    pub(crate) torrent_engine_fixture: Option<String>,
 }
 
 #[derive(Clone)]
@@ -185,6 +187,7 @@ impl SidecarSupervisor {
             .env(SESSION_TOKEN_ENV, &session_token)
             .env_remove(YTS_FIXTURE_ENV)
             .env_remove(NYAA_FIXTURE_ENV)
+            .env_remove(TORRENT_ENGINE_FIXTURE_ENV)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -193,6 +196,9 @@ impl SidecarSupervisor {
         }
         if let Some(path) = &config.nyaa_fixture {
             command.env(NYAA_FIXTURE_ENV, path);
+        }
+        if let Some(fixture) = &config.torrent_engine_fixture {
+            command.env(TORRENT_ENGINE_FIXTURE_ENV, fixture);
         }
 
         #[cfg(target_os = "windows")]
@@ -270,7 +276,7 @@ impl SidecarSupervisor {
         Ok(())
     }
 
-    fn command(&self, command: &str, fields: Value) -> Result<IpcResponse, SidecarError> {
+    fn raw_command(&self, command: &str, fields: Value) -> Result<HttpResponse, SidecarError> {
         let endpoint = self.endpoint.as_ref().ok_or(SidecarError::IpcProtocol)?;
         let mut request = serde_json::Map::from_iter([
             ("protocolVersion".into(), json!(IPC_PROTOCOL_VERSION)),
@@ -281,7 +287,11 @@ impl SidecarSupervisor {
         };
         request.extend(fields);
         let body = serde_json::to_string(&request).map_err(|_| SidecarError::IpcProtocol)?;
-        let response = send_ipc_request(endpoint, &endpoint.session_token, &body)?;
+        send_ipc_request(endpoint, &endpoint.session_token, &body)
+    }
+
+    fn command(&self, command: &str, fields: Value) -> Result<IpcResponse, SidecarError> {
+        let response = self.raw_command(command, fields)?;
         if response.status_code != 200 {
             return Err(SidecarError::IpcProtocol);
         }
@@ -325,6 +335,42 @@ impl SidecarSupervisor {
         self.command("search.cancel", json!({ "requestId": request_id }))?
             .result
             .ok_or(SidecarError::IpcProtocol)
+    }
+
+    pub(crate) fn add_download(
+        &self,
+        magnet: &str,
+        name: Option<&str>,
+        total: Option<u64>,
+        download_dir: &Path,
+    ) -> Result<Value, SidecarError> {
+        let response = self.raw_command(
+            "download.add",
+            json!({
+                "magnet": magnet,
+                "name": name,
+                "total": total,
+                "downloadDir": download_dir,
+            }),
+        )?;
+        let protocol_version = response.body["protocolVersion"].as_u64();
+        if protocol_version != Some(u64::from(IPC_PROTOCOL_VERSION)) {
+            return Err(SidecarError::IpcProtocol);
+        }
+        let valid_success = response.status_code == 200
+            && response.body["ok"] == true
+            && response.body["command"] == "download.add"
+            && response.body["result"]["taskId"].is_string()
+            && response.body["result"]["task"].is_object();
+        let valid_error = response.status_code >= 400
+            && response.status_code < 600
+            && response.body["ok"] == false
+            && response.body["error"]["code"].is_string()
+            && response.body["error"]["message"].is_string();
+        if !valid_success && !valid_error {
+            return Err(SidecarError::IpcProtocol);
+        }
+        Ok(response.body)
     }
 
     #[cfg(test)]
@@ -625,6 +671,7 @@ mod tests {
             session_token: None,
             yts_fixture: Some(search_fixture("yts-normal.json")),
             nyaa_fixture: Some(search_fixture("nyaa-normal.xml")),
+            torrent_engine_fixture: None,
         };
         let mut supervisor = started_supervisor_with_config(&config);
         let providers = supervisor
@@ -686,6 +733,75 @@ mod tests {
             .cancel_search(second_request_id)
             .expect("second search should cancel");
         supervisor.stop().expect("sidecar should stop");
+    }
+
+    #[test]
+    fn adds_downloads_and_returns_structured_failures_over_authenticated_ipc() {
+        let download_dir = std::env::temp_dir().join(format!(
+            "torlink-phase-3-4-{}-{}",
+            std::process::id(),
+            generate_random_hex(4).expect("test suffix should be random")
+        ));
+        let config = SidecarLaunchConfig {
+            torrent_engine_fixture: Some("success".to_owned()),
+            ..SidecarLaunchConfig::default()
+        };
+        let mut supervisor = started_supervisor_with_config(&config);
+        let magnet = "magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01";
+
+        let added = supervisor
+            .add_download(magnet, Some("Legal fixture"), Some(42), &download_dir)
+            .expect("download command should return a structured response");
+        assert_eq!(added["ok"], true);
+        assert_eq!(added["command"], "download.add");
+        assert_eq!(added["result"]["task"]["status"], "downloading");
+        assert_eq!(
+            added["result"]["task"]["savePath"].as_str(),
+            Some(download_dir.to_string_lossy().as_ref())
+        );
+
+        let duplicate = supervisor
+            .add_download(magnet, Some("Duplicate"), Some(42), &download_dir)
+            .expect("duplicate should remain a structured IPC response");
+        assert_eq!(duplicate["ok"], false);
+        assert_eq!(duplicate["error"]["code"], "duplicate_torrent");
+
+        let invalid = supervisor
+            .add_download("not-a-magnet", None, None, &download_dir)
+            .expect("invalid magnet should remain a structured IPC response");
+        assert_eq!(invalid["ok"], false);
+        assert_eq!(invalid["error"]["code"], "invalid_magnet");
+
+        supervisor.stop().expect("sidecar should stop");
+        let _ = std::fs::remove_dir_all(download_dir);
+    }
+
+    #[test]
+    fn returns_structured_engine_add_failure() {
+        let download_dir =
+            std::env::temp_dir().join(format!("torlink-phase-3-4-failure-{}", std::process::id()));
+        let config = SidecarLaunchConfig {
+            torrent_engine_fixture: Some("failure".to_owned()),
+            ..SidecarLaunchConfig::default()
+        };
+        let mut supervisor = started_supervisor_with_config(&config);
+        let failed = supervisor
+            .add_download(
+                "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567",
+                Some("Failure fixture"),
+                None,
+                &download_dir,
+            )
+            .expect("engine failure should remain a structured IPC response");
+        assert_eq!(failed["ok"], false);
+        assert_eq!(failed["error"]["code"], "engine_add_failed");
+        assert!(!failed["error"]["message"]
+            .as_str()
+            .expect("message should be text")
+            .contains("fixture engine failure"));
+
+        supervisor.stop().expect("sidecar should stop");
+        let _ = std::fs::remove_dir_all(download_dir);
     }
 
     #[test]

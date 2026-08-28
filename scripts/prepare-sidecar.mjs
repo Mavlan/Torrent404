@@ -38,7 +38,7 @@ const sidecarDirectory = path.join(
 );
 const destination = path.join(sidecarDirectory, "node.exe");
 const sidecarCoreDirectory = path.join(sidecarDirectory, "core");
-const coreOutputDirectory = path.join(repositoryRoot, "packages", "core", "dist", "search");
+const coreOutputDirectory = path.join(repositoryRoot, "packages", "core", "dist");
 const typescriptCompiler = path.join(
   repositoryRoot,
   "node_modules",
@@ -58,11 +58,15 @@ await promisify(execFile)(process.execPath, [
 ], { cwd: repositoryRoot, windowsHide: true });
 await mkdir(sidecarCoreDirectory, { recursive: true });
 for (const [source, target] of [
-  ["ProviderRegistry.js", "ProviderRegistry.js"],
-  ["SearchAggregator.js", "SearchAggregator.js"],
-  [path.join("providers", "NyaaProvider.js"), "NyaaProvider.js"],
-  [path.join("providers", "YtsProvider.js"), "YtsProvider.js"],
+  [path.join("search", "ProviderRegistry.js"), "ProviderRegistry.js"],
+  [path.join("search", "SearchAggregator.js"), "SearchAggregator.js"],
+  [path.join("search", "providers", "NyaaProvider.js"), "NyaaProvider.js"],
+  [path.join("search", "providers", "YtsProvider.js"), "YtsProvider.js"],
+  [path.join("tasks", "DownloadTaskModel.js"), path.join("tasks", "DownloadTaskModel.js")],
+  [path.join("torrent", "TorrentManager.js"), path.join("torrent", "TorrentManager.js")],
+  [path.join("torrent", "WebTorrentAdapter.js"), path.join("torrent", "WebTorrentAdapter.js")],
 ]) {
+  await mkdir(path.dirname(path.join(sidecarCoreDirectory, target)), { recursive: true });
   await copyFile(
     path.join(coreOutputDirectory, source),
     path.join(sidecarCoreDirectory, target),
@@ -70,5 +74,5 @@ for (const [source, target] of [
 }
 
 process.stdout.write(
-  `Prepared bundled Node sidecar runtime ${REQUIRED_NODE_VERSION} and Core search modules\n`,
+  `Prepared bundled Node sidecar runtime ${REQUIRED_NODE_VERSION} and Core search/torrent modules\n`,
 );

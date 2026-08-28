@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import App from "./App";
+import type { DownloadClient } from "./downloadClient";
 import type { SearchClient } from "./searchClient";
 
 const providerResult = {
@@ -20,9 +21,16 @@ function shellClient(): SearchClient {
   };
 }
 
+function shellDownloadClient(): DownloadClient {
+  return {
+    add: vi.fn().mockRejectedValue(new Error("download not expected")),
+    directory: vi.fn().mockResolvedValue("C:\\Users\\Tester\\Downloads\\涌流404"),
+  };
+}
+
 describe("desktop shell", () => {
   it("renders human-readable category counts from provider descriptors", async () => {
-    render(<App searchClient={shellClient()} />);
+    render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
     expect(screen.getByText("涌流404")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /从一个入口/ })).toBeInTheDocument();
     expect(screen.getByText("搜索电影、剧集、动漫、游戏和其他 Torrent 资源")).toBeInTheDocument();
@@ -45,14 +53,14 @@ describe("desktop shell", () => {
 
   it("navigates to downloads and shows its empty state", async () => {
     const user = userEvent.setup();
-    render(<App searchClient={shellClient()} />);
+    render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
     await user.click(screen.getByRole("button", { name: /下载中/ }));
     expect(screen.getByRole("heading", { name: "下载队列安静待命" })).toBeInTheDocument();
   });
 
   it("states the privacy boundary in About", async () => {
     const user = userEvent.setup();
-    render(<App searchClient={shellClient()} />);
+    render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
     await user.click(screen.getByRole("button", { name: "关于" }));
     expect(screen.getByRole("heading", { name: "关于涌流404" })).toBeInTheDocument();
     expect(screen.getByText(/peers 可以看到你的公网 IP/)).toBeInTheDocument();
@@ -61,7 +69,7 @@ describe("desktop shell", () => {
 
   it("switches the complete shell to English without restarting", async () => {
     const user = userEvent.setup();
-    render(<App searchClient={shellClient()} />);
+    render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
 
     await user.click(screen.getByRole("button", { name: "设置" }));
     await user.click(screen.getByRole("button", { name: "English" }));
@@ -82,7 +90,7 @@ describe("desktop shell", () => {
   it("shows a category-specific empty state and never searches without sources", async () => {
     const client = shellClient();
     const user = userEvent.setup();
-    render(<App searchClient={client} />);
+    render(<App searchClient={client} downloadClient={shellDownloadClient()} />);
 
     await user.click(await screen.findByRole("button", { name: /剧集.*暂无/ }));
 
@@ -96,7 +104,7 @@ describe("desktop shell", () => {
 
   it("shows current built-in sources in Settings without management controls", async () => {
     const user = userEvent.setup();
-    render(<App searchClient={shellClient()} />);
+    render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
 
     await user.click(screen.getByRole("button", { name: "设置" }));
     expect(await screen.findByRole("heading", { name: "内置搜索来源" })).toBeInTheDocument();
@@ -164,8 +172,31 @@ describe("desktop shell", () => {
         }),
       cancel: vi.fn().mockResolvedValue({ requestId, cancelled: true }),
     };
+    const downloads: DownloadClient = {
+      add: vi.fn().mockResolvedValue({
+        ok: true,
+        protocolVersion: 1,
+        command: "download.add",
+        result: {
+          taskId: "download-public-domain",
+          task: {
+            id: "download-public-domain",
+            infoHash: "abcdef0123456789abcdef0123456789abcdef01",
+            name: "Public Domain Film",
+            status: "downloading",
+            progress: 0,
+            downloadSpeed: 0,
+            uploadSpeed: 0,
+            downloaded: 0,
+            total: 1_048_576,
+            savePath: "C:\\Users\\Tester\\Downloads\\涌流404",
+          },
+        },
+      }),
+      directory: vi.fn().mockResolvedValue("C:\\Users\\Tester\\Downloads\\涌流404"),
+    };
     const user = userEvent.setup();
-    render(<App searchClient={client} />);
+    render(<App searchClient={client} downloadClient={downloads} />);
 
     await user.type(screen.getByPlaceholderText("输入关键词、Magnet 或 infohash"), "open media");
     await user.click(screen.getByRole("button", { name: /^开始搜索/ }));
@@ -177,6 +208,67 @@ describe("desktop shell", () => {
     expect(client.start).toHaveBeenCalledWith("open media", "all");
     expect(client.poll).toHaveBeenNthCalledWith(1, requestId, 0);
     expect(client.poll).toHaveBeenNthCalledWith(2, requestId, 2);
+
+    await user.click(screen.getAllByRole("button", { name: "下载" })[0]!);
+    expect(downloads.add).toHaveBeenCalledWith({
+      magnet: "magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01",
+      name: "Public Domain Film",
+      total: 1_048_576,
+    });
+    expect(await screen.findByRole("heading", { name: "Public Domain Film" })).toBeInTheDocument();
+    expect(screen.getByText("download-public-domain")).toBeInTheDocument();
+    expect(screen.getByText("下载任务已创建，可在“下载中”查看。")).toBeInTheDocument();
+  });
+
+  it("disables results without a magnet and localizes structured download errors", async () => {
+    const requestId = "search-download-errors";
+    const client: SearchClient = {
+      providers: vi.fn().mockResolvedValue(providerResult),
+      start: vi.fn().mockResolvedValue({ requestId }),
+      poll: vi.fn().mockResolvedValue({
+        requestId,
+        events: [
+          {
+            type: "search.result",
+            requestId,
+            result: { id: "missing", title: "Missing Magnet", source: "yts" },
+          },
+          {
+            type: "search.result",
+            requestId,
+            result: { id: "duplicate", title: "Duplicate Fixture", source: "nyaa", magnet: `magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01` },
+          },
+          { type: "search.complete", requestId, cancelled: false },
+        ],
+        nextCursor: 3,
+        done: true,
+      }),
+      cancel: vi.fn().mockResolvedValue({ requestId, cancelled: true }),
+    };
+    const downloads: DownloadClient = {
+      add: vi.fn().mockResolvedValue({
+        ok: false,
+        protocolVersion: 1,
+        error: { code: "duplicate_torrent", message: "internal task identity" },
+      }),
+      directory: vi.fn().mockResolvedValue("C:\\Downloads\\涌流404"),
+    };
+    const user = userEvent.setup();
+    render(<App searchClient={client} downloadClient={downloads} />);
+
+    await user.type(screen.getByPlaceholderText("输入关键词、Magnet 或 infohash"), "fixture");
+    await user.click(screen.getByRole("button", { name: /^开始搜索/ }));
+    const buttons = await screen.findAllByRole("button", { name: "下载" });
+    expect(buttons[0]).toBeDisabled();
+    expect(buttons[0]).toHaveAttribute("title", "该结果没有可用的 Magnet，暂时无法下载");
+    await user.click(buttons[1]!);
+    expect(await screen.findByText("这个 Torrent 已在下载列表中。")).toBeInTheDocument();
+    expect(screen.queryByText("internal task identity")).not.toBeInTheDocument();
+
+    vi.mocked(downloads.add).mockRejectedValueOnce(new Error("private sidecar stack"));
+    await user.click(buttons[1]!);
+    expect(await screen.findByText("本机下载服务暂时不可用，请稍后重试。")).toBeInTheDocument();
+    expect(screen.queryByText("private sidecar stack")).not.toBeInTheDocument();
   });
 
   it("cancels the prior IPC search when a new query starts", async () => {
@@ -200,7 +292,7 @@ describe("desktop shell", () => {
       cancel: vi.fn().mockResolvedValue({ requestId: "search-old", cancelled: true }),
     };
     const user = userEvent.setup();
-    render(<App searchClient={client} />);
+    render(<App searchClient={client} downloadClient={shellDownloadClient()} />);
     const input = screen.getByPlaceholderText("输入关键词、Magnet 或 infohash");
 
     await user.type(input, "first");
@@ -229,7 +321,7 @@ describe("desktop shell", () => {
       cancel: vi.fn().mockResolvedValue({ requestId, cancelled: true }),
     };
     const user = userEvent.setup();
-    render(<App searchClient={client} />);
+    render(<App searchClient={client} downloadClient={shellDownloadClient()} />);
 
     await user.click(screen.getByRole("button", { name: /电影/ }));
     await user.type(screen.getByPlaceholderText("输入关键词、Magnet 或 infohash"), "legal movie");
