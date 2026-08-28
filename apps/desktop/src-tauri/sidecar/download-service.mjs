@@ -142,6 +142,93 @@ export class DownloadService {
     }
   }
 
+  pause(input) {
+    return this.#changeState(input, "pause", ["queued", "downloading", "seeding"]);
+  }
+
+  resume(input) {
+    return this.#changeState(input, "resume", ["paused"]);
+  }
+
+  async remove(input) {
+    const { taskId } = this.#existingTask(input);
+    try {
+      if (!await this.#manager.remove(taskId)) {
+        throw new DownloadCommandError(
+          "engine_control_failed",
+          "The torrent engine could not remove this task",
+          502,
+        );
+      }
+    } catch (error) {
+      if (error instanceof DownloadCommandError) throw error;
+      throw new DownloadCommandError(
+        "engine_control_failed",
+        "The torrent engine could not remove this task",
+        502,
+      );
+    }
+    return { taskId, removed: true };
+  }
+
+  #existingTask(input) {
+    const taskId = typeof input?.taskId === "string" ? input.taskId.trim() : "";
+    if (taskId.length === 0 || taskId.length > 500) {
+      throw new DownloadCommandError(
+        "invalid_download_task_request",
+        "Download task ID is invalid",
+        400,
+      );
+    }
+    const task = this.#manager.get(taskId);
+    if (!task) {
+      throw new DownloadCommandError(
+        "download_task_not_found",
+        "Download task was not found",
+        404,
+      );
+    }
+    return { taskId, task };
+  }
+
+  #changeState(input, operation, allowedStatuses) {
+    const { taskId, task } = this.#existingTask(input);
+    if (!allowedStatuses.includes(task.status)) {
+      throw new DownloadCommandError(
+        "invalid_download_task_transition",
+        `Download task cannot ${operation} from its current state`,
+        409,
+      );
+    }
+
+    try {
+      if (!this.#manager[operation](taskId)) {
+        throw new DownloadCommandError(
+          "engine_control_failed",
+          `The torrent engine could not ${operation} this task`,
+          502,
+        );
+      }
+    } catch (error) {
+      if (error instanceof DownloadCommandError) throw error;
+      throw new DownloadCommandError(
+        "engine_control_failed",
+        `The torrent engine could not ${operation} this task`,
+        502,
+      );
+    }
+
+    const updated = this.#manager.get(taskId);
+    if (!updated) {
+      throw new DownloadCommandError(
+        "engine_control_failed",
+        `The torrent engine could not ${operation} this task`,
+        502,
+      );
+    }
+    return { taskId, task: updated };
+  }
+
   async shutdown() {
     await this.#manager.destroy();
   }

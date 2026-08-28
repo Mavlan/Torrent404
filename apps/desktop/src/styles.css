@@ -208,6 +208,12 @@ nav { position: relative; z-index: 1; display: grid; gap: 4px; }
 .download-task span { color: var(--signal); font: 650 9px/1 "Bahnschrift", sans-serif; letter-spacing: .12em; text-transform: uppercase; }
 .download-task h2 { margin: 8px 0 6px; overflow-wrap: anywhere; font-size: 16px; }
 .download-task p { margin: 0; color: var(--muted); font-size: 11px; }
+.task-actions { display: grid; justify-items: end; gap: 12px; }
+.task-controls { display: flex; gap: 8px; }
+.task-controls button { min-width: 72px; padding: 8px 12px; border: 1px solid var(--line-bright); background: transparent; color: var(--text); font: 650 10px/1 "Bahnschrift", sans-serif; letter-spacing: .08em; cursor: pointer; }
+.task-controls button:hover:not(:disabled) { border-color: var(--signal); color: var(--signal); }
+.task-controls button.remove:hover:not(:disabled) { border-color: #e06b69; color: #e06b69; }
+.task-controls button:disabled { cursor: wait; opacity: .45; }
 .task-identity { display: grid; justify-items: end; gap: 8px; }
 .task-identity small { color: var(--faint); font: 600 8px/1 "Bahnschrift", sans-serif; letter-spacing: .12em; text-transform: uppercase; }
 .task-identity code { color: var(--muted); font: 500 10px/1.3 "Cascadia Mono", monospace; }

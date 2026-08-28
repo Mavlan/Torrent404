@@ -373,6 +373,45 @@ impl SidecarSupervisor {
         Ok(response.body)
     }
 
+    pub(crate) fn control_download(
+        &self,
+        command: &str,
+        task_id: &str,
+    ) -> Result<Value, SidecarError> {
+        if !matches!(
+            command,
+            "download.pause" | "download.resume" | "download.remove"
+        ) {
+            return Err(SidecarError::IpcProtocol);
+        }
+        let response = self.raw_command(command, json!({ "taskId": task_id }))?;
+        if response.body["protocolVersion"].as_u64() != Some(u64::from(IPC_PROTOCOL_VERSION)) {
+            return Err(SidecarError::IpcProtocol);
+        }
+        let result = &response.body["result"];
+        let valid_state_success = command != "download.remove"
+            && response.status_code == 200
+            && response.body["ok"] == true
+            && response.body["command"] == command
+            && result["taskId"].is_string()
+            && result["task"].is_object();
+        let valid_remove_success = command == "download.remove"
+            && response.status_code == 200
+            && response.body["ok"] == true
+            && response.body["command"] == command
+            && result["taskId"].is_string()
+            && result["removed"] == true;
+        let valid_error = response.status_code >= 400
+            && response.status_code < 600
+            && response.body["ok"] == false
+            && response.body["error"]["code"].is_string()
+            && response.body["error"]["message"].is_string();
+        if !valid_state_success && !valid_remove_success && !valid_error {
+            return Err(SidecarError::IpcProtocol);
+        }
+        Ok(response.body)
+    }
+
     #[cfg(test)]
     fn endpoint(&self) -> Option<(u16, &str)> {
         self.endpoint
@@ -765,6 +804,33 @@ mod tests {
             .expect("duplicate should remain a structured IPC response");
         assert_eq!(duplicate["ok"], false);
         assert_eq!(duplicate["error"]["code"], "duplicate_torrent");
+
+        let task_id = added["result"]["taskId"]
+            .as_str()
+            .expect("download should have task ID");
+        let invalid_transition = supervisor
+            .control_download("download.resume", task_id)
+            .expect("invalid transition should remain a structured IPC response");
+        assert_eq!(
+            invalid_transition["error"]["code"],
+            "invalid_download_task_transition"
+        );
+        let paused = supervisor
+            .control_download("download.pause", task_id)
+            .expect("pause should return a structured response");
+        assert_eq!(paused["result"]["task"]["status"], "paused");
+        let resumed = supervisor
+            .control_download("download.resume", task_id)
+            .expect("resume should return a structured response");
+        assert_eq!(resumed["result"]["task"]["status"], "downloading");
+        let removed = supervisor
+            .control_download("download.remove", task_id)
+            .expect("remove should return a structured response");
+        assert_eq!(removed["result"]["removed"], true);
+        let missing = supervisor
+            .control_download("download.pause", task_id)
+            .expect("missing task should remain a structured IPC response");
+        assert_eq!(missing["error"]["code"], "download_task_not_found");
 
         let invalid = supervisor
             .add_download("not-a-magnet", None, None, &download_dir)

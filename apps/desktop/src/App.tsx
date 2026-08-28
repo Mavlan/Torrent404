@@ -103,6 +103,9 @@ function downloadErrorLabel(code: IpcErrorCode): MessageKey {
     duplicate_torrent: "error.duplicateTorrent",
     download_directory_unavailable: "error.downloadDirectoryUnavailable",
     engine_add_failed: "error.engineAddFailed",
+    download_task_not_found: "error.downloadTaskNotFound",
+    invalid_download_task_transition: "error.invalidDownloadTaskTransition",
+    engine_control_failed: "error.engineControlFailed",
   };
   return labels[code] ?? "error.downloadUnavailable";
 }
@@ -167,6 +170,7 @@ function App({
   const [searchState, setSearchState] = useState<"idle" | "searching" | "complete" | "error">("idle");
   const [downloadTasks, setDownloadTasks] = useState<DownloadTask[]>([]);
   const [addingResultIds, setAddingResultIds] = useState<Set<string>>(new Set());
+  const [controllingTaskIds, setControllingTaskIds] = useState<Set<string>>(new Set());
   const [downloadDirectory, setDownloadDirectory] = useState<string | null>(null);
   const activeSearch = useRef<{ generation: number; requestId: string | null }>({
     generation: 0,
@@ -343,6 +347,40 @@ function App({
       setAddingResultIds((current) => {
         const next = new Set(current);
         next.delete(result.id);
+        return next;
+      });
+    }
+  };
+
+  const controlDownload = async (
+    task: DownloadTask,
+    operation: "pause" | "resume" | "remove",
+  ) => {
+    if (controllingTaskIds.has(task.id)) return;
+    if (operation === "remove" && !window.confirm(t("downloads.removeConfirm"))) return;
+    setControllingTaskIds((current) => new Set(current).add(task.id));
+    setNotice(null);
+    try {
+      const response = await downloadClient[operation](task.id);
+      if (!response.ok) {
+        setNotice(downloadErrorLabel(response.error.code));
+        return;
+      }
+      if (response.command === "download.remove") {
+        setDownloadTasks((current) => current.filter((item) => item.id !== task.id));
+        setNotice("download.removed");
+      } else {
+        setDownloadTasks((current) => current.map((item) => (
+          item.id === task.id ? response.result.task : item
+        )));
+        setNotice(operation === "pause" ? "download.paused" : "download.resumed");
+      }
+    } catch {
+      setNotice("error.downloadUnavailable");
+    } finally {
+      setControllingTaskIds((current) => {
+        const next = new Set(current);
+        next.delete(task.id);
         return next;
       });
     }
@@ -525,7 +563,17 @@ function App({
                   {downloadTasks.map((task) => (
                     <article className="download-task" key={task.id}>
                       <div><span>{taskStatusLabel(task, t)}</span><h2>{task.name}</h2><p>{formatBytes(task.total)}</p></div>
-                      <div className="task-identity"><small>{t("downloads.taskId")}</small><code>{task.id}</code></div>
+                      <div className="task-actions">
+                        <div className="task-identity"><small>{t("downloads.taskId")}</small><code>{task.id}</code></div>
+                        <div className="task-controls">
+                          {task.status === "paused" ? (
+                            <button disabled={controllingTaskIds.has(task.id)} onClick={() => void controlDownload(task, "resume")} type="button">{t("downloads.resume")}</button>
+                          ) : ["queued", "downloading", "seeding"].includes(task.status) ? (
+                            <button disabled={controllingTaskIds.has(task.id)} onClick={() => void controlDownload(task, "pause")} type="button">{t("downloads.pause")}</button>
+                          ) : null}
+                          <button className="remove" disabled={controllingTaskIds.has(task.id)} onClick={() => void controlDownload(task, "remove")} type="button">{t("downloads.remove")}</button>
+                        </div>
+                      </div>
                     </article>
                   ))}
                 </section>

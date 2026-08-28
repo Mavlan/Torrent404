@@ -75,6 +75,40 @@ fn download_add(
         .map_err(|error| error.to_string())
 }
 
+fn control_download(
+    command: &'static str,
+    task_id: String,
+    sidecar: State<'_, Mutex<SidecarSupervisor>>,
+) -> Result<Value, String> {
+    use_sidecar(sidecar, |supervisor| {
+        supervisor.control_download(command, &task_id)
+    })
+}
+
+#[tauri::command]
+fn download_pause(
+    task_id: String,
+    sidecar: State<'_, Mutex<SidecarSupervisor>>,
+) -> Result<Value, String> {
+    control_download("download.pause", task_id, sidecar)
+}
+
+#[tauri::command]
+fn download_resume(
+    task_id: String,
+    sidecar: State<'_, Mutex<SidecarSupervisor>>,
+) -> Result<Value, String> {
+    control_download("download.resume", task_id, sidecar)
+}
+
+#[tauri::command]
+fn download_remove(
+    task_id: String,
+    sidecar: State<'_, Mutex<SidecarSupervisor>>,
+) -> Result<Value, String> {
+    control_download("download.remove", task_id, sidecar)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
@@ -84,7 +118,10 @@ pub fn run() {
             search_poll,
             search_cancel,
             download_directory,
-            download_add
+            download_add,
+            download_pause,
+            download_resume,
+            download_remove
         ])
         .setup(|app| {
             let resource_dir = app.path().resource_dir()?;

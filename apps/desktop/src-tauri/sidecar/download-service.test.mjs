@@ -15,15 +15,19 @@ const MAGNET = `magnet:?xt=urn:btih:${HASH}&dn=Legal%20fixture`;
 
 class FakeManager {
   requests = [];
+  tasks = new Map();
   result = undefined;
   error = undefined;
   removed = [];
+  pauseResult = true;
+  resumeResult = true;
+  removeResult = true;
   destroyed = false;
 
   async add(request) {
     this.requests.push(request);
     if (this.error) throw this.error;
-    return this.result ?? {
+    const task = this.result ?? {
       id: request.id,
       infoHash: request.infoHash,
       name: request.name,
@@ -35,11 +39,35 @@ class FakeManager {
       total: request.total,
       savePath: request.savePath,
     };
+    this.tasks.set(task.id, task);
+    return task;
   }
 
-  async remove(id) {
-    this.removed.push(id);
+  get(id) {
+    const task = this.tasks.get(id);
+    return task ? { ...task } : undefined;
+  }
+
+  pause(id) {
+    if (!this.pauseResult || !this.tasks.has(id)) return false;
+    this.tasks.set(id, { ...this.tasks.get(id), status: "paused" });
     return true;
+  }
+
+  resume(id) {
+    if (!this.resumeResult || !this.tasks.has(id)) return false;
+    const task = this.tasks.get(id);
+    this.tasks.set(id, {
+      ...task,
+      status: task.progress >= 1 ? "seeding" : "downloading",
+    });
+    return true;
+  }
+
+  async remove(id, options) {
+    this.removed.push({ id, options });
+    if (!this.removeResult) return false;
+    return this.tasks.delete(id);
   }
 
   async destroy() {
@@ -145,7 +173,53 @@ test("maps duplicate and engine failures without exposing stack traces", async (
     (error) => error.code === "engine_add_failed"
       && !error.message.includes("private engine stack"),
   );
-  assert.deepEqual(failedManager.removed, ["download-test"]);
+  assert.deepEqual(failedManager.removed, [{ id: "download-test", options: undefined }]);
+});
+
+test("pauses, resumes, and removes tasks only through the manager", async () => {
+  const { manager, service: downloads } = service();
+  const added = await downloads.add({ magnet: MAGNET, downloadDir: "C:\\Downloads" });
+
+  const paused = downloads.pause({ taskId: added.taskId });
+  assert.equal(paused.task.status, "paused");
+  const resumed = downloads.resume({ taskId: added.taskId });
+  assert.equal(resumed.task.status, "downloading");
+  assert.deepEqual(await downloads.remove({ taskId: added.taskId }), {
+    taskId: "download-test",
+    removed: true,
+  });
+  assert.deepEqual(manager.removed, [{ id: "download-test", options: undefined }]);
+  assert.equal(manager.get("download-test"), undefined);
+});
+
+test("returns structured missing-task, invalid-transition, and engine control errors", async () => {
+  const { manager, service: downloads } = service();
+  assert.throws(
+    () => downloads.pause({ taskId: "missing" }),
+    (error) => error.code === "download_task_not_found" && error.statusCode === 404,
+  );
+  assert.throws(
+    () => downloads.pause({}),
+    (error) => error.code === "invalid_download_task_request" && error.statusCode === 400,
+  );
+
+  const added = await downloads.add({ magnet: MAGNET, downloadDir: "C:\\Downloads" });
+  assert.throws(
+    () => downloads.resume({ taskId: added.taskId }),
+    (error) => error.code === "invalid_download_task_transition" && error.statusCode === 409,
+  );
+
+  manager.pauseResult = false;
+  assert.throws(
+    () => downloads.pause({ taskId: added.taskId }),
+    (error) => error.code === "engine_control_failed" && error.statusCode === 502,
+  );
+  manager.removeResult = false;
+  await assert.rejects(
+    downloads.remove({ taskId: added.taskId }),
+    (error) => error.code === "engine_control_failed" && error.statusCode === 502,
+  );
+  assert.equal(manager.get(added.taskId)?.status, "downloading");
 });
 
 test("destroys the manager-owned engine during shutdown", async () => {

@@ -64,8 +64,8 @@ function createTorrentEngine() {
       tasks.add(request.id);
     },
     async remove(id) { return tasks.delete(id); },
-    pause() { return false; },
-    resume() { return false; },
+    pause(id) { return tasks.has(id); },
+    resume(id) { return tasks.has(id); },
     snapshot() { return null; },
     listenPort() { return null; },
     async destroy() { tasks.clear(); },
@@ -194,6 +194,36 @@ async function handleCommand(response, request) {
         protocolVersion: IPC_PROTOCOL_VERSION,
         command: "download.add",
         result: await downloadService.add(request),
+      });
+      return;
+    }
+
+    if (request.command === "download.pause") {
+      sendJson(response, 200, {
+        ok: true,
+        protocolVersion: IPC_PROTOCOL_VERSION,
+        command: "download.pause",
+        result: downloadService.pause(request),
+      });
+      return;
+    }
+
+    if (request.command === "download.resume") {
+      sendJson(response, 200, {
+        ok: true,
+        protocolVersion: IPC_PROTOCOL_VERSION,
+        command: "download.resume",
+        result: downloadService.resume(request),
+      });
+      return;
+    }
+
+    if (request.command === "download.remove") {
+      sendJson(response, 200, {
+        ok: true,
+        protocolVersion: IPC_PROTOCOL_VERSION,
+        command: "download.remove",
+        result: await downloadService.remove(request),
       });
       return;
     }

@@ -191,11 +191,31 @@ describe("TorrentManager", () => {
     expect(engine.resume).toHaveBeenCalledTimes(2);
   });
 
-  it("removes the engine handle and local task", async () => {
+  it("keeps task state unchanged when controls are invalid or the engine rejects them", async () => {
     const { engine, manager } = await addedManager();
 
-    await expect(manager.remove("task-1", { deleteData: true })).resolves.toBe(true);
-    expect(engine.remove).toHaveBeenCalledWith("task-1", { deleteData: true });
+    engine.pause.mockReturnValueOnce(false);
+    expect(manager.pause("task-1")).toBe(false);
+    expect(manager.get("task-1")?.status).toBe("downloading");
+
+    expect(manager.resume("task-1")).toBe(false);
+    expect(engine.resume).not.toHaveBeenCalled();
+
+    expect(manager.pause("task-1")).toBe(true);
+    engine.resume.mockReturnValueOnce(false);
+    expect(manager.resume("task-1")).toBe(false);
+    expect(manager.get("task-1")?.status).toBe("paused");
+  });
+
+  it("removes only the engine task by default and preserves it when the engine fails", async () => {
+    const { engine, manager } = await addedManager();
+
+    engine.remove.mockResolvedValueOnce(false);
+    await expect(manager.remove("task-1")).resolves.toBe(false);
+    expect(manager.get("task-1")).toBeDefined();
+
+    await expect(manager.remove("task-1")).resolves.toBe(true);
+    expect(engine.remove).toHaveBeenLastCalledWith("task-1", {});
     expect(manager.get("task-1")).toBeUndefined();
     await expect(manager.remove("missing")).resolves.toBe(false);
   });

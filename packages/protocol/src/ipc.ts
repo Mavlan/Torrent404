@@ -10,6 +10,9 @@ export const IPC_COMMANDS = [
   "search.poll",
   "search.cancel",
   "download.add",
+  "download.pause",
+  "download.resume",
+  "download.remove",
 ] as const;
 
 export type IpcCommand = (typeof IPC_COMMANDS)[number];
@@ -26,6 +29,10 @@ export type IpcErrorCode =
   | "duplicate_torrent"
   | "download_directory_unavailable"
   | "engine_add_failed"
+  | "invalid_download_task_request"
+  | "download_task_not_found"
+  | "invalid_download_task_transition"
+  | "engine_control_failed"
   | "internal_error";
 
 export interface IpcRequest {
@@ -64,6 +71,16 @@ export interface DownloadAddRequest extends IpcRequest {
   name?: string;
   total?: number;
   downloadDir: string;
+}
+
+export type DownloadControlCommand =
+  | "download.pause"
+  | "download.resume"
+  | "download.remove";
+
+export interface DownloadControlRequest extends IpcRequest {
+  command: DownloadControlCommand;
+  taskId: string;
 }
 
 export interface IpcErrorResponse {
@@ -174,6 +191,26 @@ export interface DownloadAddResponse {
   };
 }
 
+export interface DownloadStateControlResponse {
+  ok: true;
+  protocolVersion: typeof IPC_PROTOCOL_VERSION;
+  command: "download.pause" | "download.resume";
+  result: {
+    taskId: string;
+    task: DownloadTask;
+  };
+}
+
+export interface DownloadRemoveResponse {
+  ok: true;
+  protocolVersion: typeof IPC_PROTOCOL_VERSION;
+  command: "download.remove";
+  result: {
+    taskId: string;
+    removed: true;
+  };
+}
+
 export type IpcResponse =
   | IpcErrorResponse
   | PingResponse
@@ -182,4 +219,6 @@ export type IpcResponse =
   | SearchStartResponse
   | SearchPollResponse
   | SearchCancelResponse
-  | DownloadAddResponse;
+  | DownloadAddResponse
+  | DownloadStateControlResponse
+  | DownloadRemoveResponse;

@@ -24,6 +24,9 @@ function shellClient(): SearchClient {
 function shellDownloadClient(): DownloadClient {
   return {
     add: vi.fn().mockRejectedValue(new Error("download not expected")),
+    pause: vi.fn().mockRejectedValue(new Error("pause not expected")),
+    resume: vi.fn().mockRejectedValue(new Error("resume not expected")),
+    remove: vi.fn().mockRejectedValue(new Error("remove not expected")),
     directory: vi.fn().mockResolvedValue("C:\\Users\\Tester\\Downloads\\涌流404"),
   };
 }
@@ -193,6 +196,52 @@ describe("desktop shell", () => {
           },
         },
       }),
+      pause: vi.fn().mockResolvedValue({
+        ok: true,
+        protocolVersion: 1,
+        command: "download.pause",
+        result: {
+          taskId: "download-public-domain",
+          task: {
+            id: "download-public-domain",
+            infoHash: "abcdef0123456789abcdef0123456789abcdef01",
+            name: "Public Domain Film",
+            status: "paused",
+            progress: 0,
+            downloadSpeed: 0,
+            uploadSpeed: 0,
+            downloaded: 0,
+            total: 1_048_576,
+            savePath: "C:\\Users\\Tester\\Downloads\\涌流404",
+          },
+        },
+      }),
+      resume: vi.fn().mockResolvedValue({
+        ok: true,
+        protocolVersion: 1,
+        command: "download.resume",
+        result: {
+          taskId: "download-public-domain",
+          task: {
+            id: "download-public-domain",
+            infoHash: "abcdef0123456789abcdef0123456789abcdef01",
+            name: "Public Domain Film",
+            status: "downloading",
+            progress: 0,
+            downloadSpeed: 0,
+            uploadSpeed: 0,
+            downloaded: 0,
+            total: 1_048_576,
+            savePath: "C:\\Users\\Tester\\Downloads\\涌流404",
+          },
+        },
+      }),
+      remove: vi.fn().mockResolvedValue({
+        ok: true,
+        protocolVersion: 1,
+        command: "download.remove",
+        result: { taskId: "download-public-domain", removed: true },
+      }),
       directory: vi.fn().mockResolvedValue("C:\\Users\\Tester\\Downloads\\涌流404"),
     };
     const user = userEvent.setup();
@@ -218,6 +267,22 @@ describe("desktop shell", () => {
     expect(await screen.findByRole("heading", { name: "Public Domain Film" })).toBeInTheDocument();
     expect(screen.getByText("download-public-domain")).toBeInTheDocument();
     expect(screen.getByText("下载任务已创建，可在“下载中”查看。")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "暂停" }));
+    expect(downloads.pause).toHaveBeenCalledWith("download-public-domain");
+    expect(await screen.findByText("已暂停")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "继续" }));
+    expect(downloads.resume).toHaveBeenCalledWith("download-public-domain");
+    expect(await screen.findByText("下载任务已恢复。")).toBeInTheDocument();
+
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    await user.click(screen.getByRole("button", { name: "移除" }));
+    expect(downloads.remove).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "移除" }));
+    expect(downloads.remove).toHaveBeenCalledWith("download-public-domain");
+    expect(await screen.findByRole("heading", { name: "下载队列安静待命" })).toBeInTheDocument();
+    expect(screen.getByText("任务已从列表移除，本地文件已保留。")).toBeInTheDocument();
+    confirm.mockRestore();
   });
 
   it("disables results without a magnet and localizes structured download errors", async () => {
@@ -251,6 +316,9 @@ describe("desktop shell", () => {
         protocolVersion: 1,
         error: { code: "duplicate_torrent", message: "internal task identity" },
       }),
+      pause: vi.fn().mockRejectedValue(new Error("pause not expected")),
+      resume: vi.fn().mockRejectedValue(new Error("resume not expected")),
+      remove: vi.fn().mockRejectedValue(new Error("remove not expected")),
       directory: vi.fn().mockResolvedValue("C:\\Downloads\\涌流404"),
     };
     const user = userEvent.setup();

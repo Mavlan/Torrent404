@@ -138,7 +138,7 @@ export class TorrentManager {
 
   async remove(id: string, options: RemoveDownloadOptions = {}): Promise<boolean> {
     if (!this.#tasks.has(id)) return false;
-    await this.engine.remove(id, options);
+    if (!await this.engine.remove(id, options)) return false;
     this.#tasks.delete(id);
     this.#resumeStatus.delete(id);
     return true;

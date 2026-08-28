@@ -389,7 +389,7 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 - 默认目录在 sidecar 内安全递归创建并验证为可写目录；设置页显示 Rust 解析出的实际路径。
 - 搜索结果新增 Download 操作；缺少 magnet 时按钮禁用。创建成功后立即切换到“下载中”，
   展示名称、大小、状态和 task ID，并提供中英文成功/失败反馈。
-- 搜索框直接粘贴 magnet 仍按搜索处理；已拆为 Phase 3.4.1，避免扩大本步骤范围。
+- 搜索框直接粘贴 magnet 仍按搜索处理；已拆为后续 Phase 3.4.3，避免扩大本步骤范围。
 - sidecar 资源准备脚本开始复制既有 Core torrent/task runtime 模块，并继续使用锁定的
   bundled Node `v24.20.0`。
 
@@ -431,3 +431,27 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
   退出后无遗留 sidecar。
 - 未实现 pause/resume/remove、实时进度 UI 或 Phase 3.5；未运行完整验收、production bundle、
   audit 或公网版权不明 torrent smoke。
+
+## 2026-08-28 — Phase 3.4.2 Task Controls
+
+完成：
+
+- authenticated IPC v1 新增 `download.pause`、`download.resume`、`download.remove`；Rust/Tauri
+  bridge 继续复用随机端口与 session token，不建立第二套 transport。
+- sidecar 的三个 handler 只调用 `DownloadService → TorrentManager`；未直接操作
+  WebTorrent。pause/resume 的状态变化继续由 `DownloadTaskModel` 校验，seeding 暂停后恢复为
+  seeding，普通下载恢复为 downloading。
+- remove 仅在 engine 明确成功后移除 Core 任务，默认不传 `deleteData`，因此保留已下载文件；
+  engine 返回失败或抛错时任务仍保留。
+- 任务 ID 缺失、任务不存在、状态转换非法和 engine control failure 分别返回稳定结构化错误，
+  UI 显示中英文用户提示而不暴露内部 stack。
+- “下载中”任务卡新增 Pause/Resume/Remove 双语操作；Remove 使用最小原生确认，并明确告知
+  本地文件会保留。
+
+局部验证：
+
+- TorrentManager controls：8 PASS；Node download service：8 PASS；Protocol IPC：2 PASS；
+  Desktop UI controls：10 PASS。
+- authenticated sidecar controls Rust 集成测试：PASS，覆盖 pause/resume/remove、非法转换和
+  missing task；Protocol/i18n/Core/Desktop typecheck 与 `cargo check --locked`：PASS。
+- 未运行 Phase 3 全量验收、production bundle、audit 或真实 torrent smoke；未进入 Phase 3.5。
