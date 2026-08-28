@@ -486,3 +486,54 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 - 页面切换后重新进入下载页会立即取得最新快照；关闭桌面窗口后未发现遗留 `bootstrap.mjs`
   Node sidecar。
 - 未运行 Phase 3 全量验收、production bundle、全量 audit 或公网 torrent smoke；未进入下一阶段。
+
+## 2026-08-29 — Phase 3 Final Acceptance Gate
+
+完成：
+
+- Phase 3.1–3.5 的完整桌面链路通过最终验收；未新增产品功能，未进入中文 provider、
+  metadata、Release 页面或其他后续阶段。
+- 验收发现 Desktop Vitest 会误收集使用 Node `node:test` 的 sidecar `.test.mjs`，导致 workspace
+  全量测试以 “No test suite found” 失败。现将 Vitest 限定到 `src/**/*.test.{ts,tsx}`，并在
+  Desktop workspace test script 中显式运行 search/download sidecar native suites；新增配置回归
+  测试，确保两类 runner 的收集边界与 root 全量测试入口保持稳定。
+- WebTorrent 直接依赖边界复核通过：业务 UI、protocol、IPC handler 均未直接 import
+  `webtorrent`；生产代码仅 `packages/core/src/torrent/WebTorrentAdapter.ts` 在 engine adapter
+  边界导入 `webtorrent@3.0.21`。
+
+全量自动化与安全门：
+
+- 全 workspace TypeScript typecheck：Protocol、i18n、Core、Desktop 全部 PASS。
+- 全量 JavaScript/TypeScript tests：Protocol 7、i18n 2、Core 37、Desktop 14、sidecar native
+  15，合计 75 PASS；Rust/Tauri tests 13 PASS。
+- production build：Protocol、i18n、Core、Desktop 全部 PASS；Vite production bundle 107
+  modules，主 JS 299.07 kB；sidecar prepare 锁定 bundled Node `v24.20.0`。
+- `npm audit --omit=dev`：0 vulnerabilities；full `npm audit`：0 vulnerabilities。
+- `cargo fmt --check`、`cargo check --locked`、`git diff --check`：PASS。
+
+Windows production bundle 与 sidecar：
+
+- Tauri Windows production build PASS；生成 NSIS
+  `涌流404_0.1.0_x64-setup.exe`（25,439,442 bytes）与 zh-CN MSI
+  `涌流404_0.1.0_x64_zh-CN.msi`（37,781,504 bytes）。
+- 将运行环境 PATH 限定为 Windows System32 后启动 release executable，桌面仍使用 bundle 内
+  `target/release/sidecar/node.exe` 启动 `bootstrap.mjs`；health 状态显示本机服务准备就绪，
+  因此 Release 不依赖系统安装 Node.js。
+- authenticated IPC v1 的随机 session token、随机 `127.0.0.1` 端口及
+  ping/health/search providers/start/poll/cancel/download add/list/pause/resume/remove 均由全量
+  Rust/Node tests 覆盖并通过；malformed、wrong token、version mismatch、unknown command 与
+  task/control 错误均保持结构化响应。
+- production App 真实搜索 `ubuntu` 时，YTS 返回 Error、Nyaa 独立完成并返回结果；单一 provider
+  失败未阻断健康来源，验证 YTS/Nyaa 隔离。
+
+合法 torrent 实机 smoke：
+
+- 使用锁定 bundled Node `v24.20.0`、本机 UDP tracker 与自建合法 8 MiB fixture 执行真实
+  `npm run tauri dev`。搜索结果经 authenticated IPC 创建下载任务，UI 先后显示非零 downloaded、
+  427 KiB/s、ETA 与 Peers=1。
+- pause 时任务停在 2.1 MiB / 26.8%，连续观察 downloaded 不再增长，download/upload speed
+  为 0、ETA 为“—”、Peers=0；resume 后恢复到非零速度、Peers=1 并继续增长。
+- 最终达到 100% / 8,388,608 bytes，状态进入 seeding，ETA=0；输出 SHA-256 为
+  `8B065F520886246E8004A2968B437FABB0E51E927B763576B4FF61E4EED4FE38`。
+- remove 经过确认后从任务列表移除，默认保留下载文件；关闭桌面窗口和 tracker 后，未发现
+  `torlink-desktop.exe`、TorLink `bootstrap.mjs` sidecar 或 acceptance helper 遗留进程。

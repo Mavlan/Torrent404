@@ -14,5 +14,8 @@
 10. **Phase 3.4.2 Task Controls**：在 authenticated IPC v1 增加 pause/resume/remove；所有操作经 `TorrentManager` 和 `DownloadTaskModel`，remove 默认保留本地文件，桌面端提供双语按钮与删除确认。（本提交完成）
 11. **Phase 3.4.3 Magnet Direct Add**：将搜索框中的 magnet/infohash 识别为直接添加操作；保持与 Phase 3.4 相同的校验、去重与错误边界。（待执行）
 12. **Phase 3.5 Live Download Progress**：通过 authenticated IPC v1 的 `download.list` 每 750ms 获取 `TorrentManager` snapshot；桌面端实时展示进度、传输量、上下行速度、ETA、Peers 和状态，并完成真实 pause/resume/completion smoke。（本提交完成）
+13. **Phase 3 Final Acceptance Gate**：完成 workspace 全量检查、production Windows bundle、无系统 Node 假设下的 bundled sidecar 启动、authenticated IPC 全命令、provider 隔离及合法 torrent 的实时进度/控制/完成/退出链路验收；修复 Desktop 全量测试误收集 Node-native sidecar suite 的测试边界。（完成）
 
 Phase 3.5 只实现内存任务 snapshot polling 与实时展示；不包含任务持久化、删除本地文件、限速、排队优先级、新 provider、metadata/海报或 production release。
+
+Phase 3.1–3.5 已通过 Final Acceptance Gate。后续步骤仍保持独立范围；本次未进入中文 provider、metadata、Release 页面或其他新增功能。

@@ -8,7 +8,7 @@
     "dev": "vite",
     "prepare:sidecar": "node ../../scripts/prepare-sidecar.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
-    "test": "vitest run",
+    "test": "vitest run && node --test src-tauri/sidecar/search-service.test.mjs src-tauri/sidecar/download-service.test.mjs",
     "build": "npm run prepare:sidecar && tsc --noEmit -p tsconfig.json && vite build",
     "preview": "vite preview",
     "tauri": "tauri"

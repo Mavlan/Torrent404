@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 
+import { desktopTestInclude } from "../vitest.config";
+import desktopPackage from "../package.json";
 import config from "../src-tauri/tauri.conf.json";
 
 describe("Tauri Windows bundle configuration", () => {
+  it("keeps Vitest scoped away from Node-native sidecar suites", () => {
+    expect(desktopTestInclude).toEqual(["src/**/*.test.{ts,tsx}"]);
+    expect(desktopPackage.scripts.test).toContain("node --test src-tauri/sidecar/search-service.test.mjs");
+    expect(desktopPackage.scripts.test).toContain("src-tauri/sidecar/download-service.test.mjs");
+  });
+
   it("uses a Chinese WiX locale for the Chinese product metadata", () => {
     expect(config.productName).toBe("涌流404");
     expect(config.app.windows[0]?.title).toBe("涌流404");
