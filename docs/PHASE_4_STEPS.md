@@ -21,6 +21,9 @@ Phase 4 聚焦 v0.1.0 产品打磨。继续采用低额度模式：每步限制�
 6. **Phase 4.6 v0.1 Release Polish**：统一“涌流404”/`0.1.0` 产品、窗口、安装与 About 信息，
    移除下载目录的开发占位操作，补齐 WebTorrent MIT notice，并通过短 `tauri dev` 中英文 UI
    smoke 检查 Search、Settings、Downloads 与 About。（本提交完成）
+7. **Phase 4 Final Acceptance Gate — v0.1.0 Release Candidate**：全量 TypeScript/JS/Rust、两类
+   audit、Windows production bundle、无系统 Node 假设、authenticated IPC、Search Sources、
+   8 MiB 合法 torrent、production RC UI、shutdown 与 notice 全部通过；无代码修复。（本提交完成）
 
 Phase 4.1 不包含 `.torrent` 文件导入、任务持久化、新 provider、metadata/海报、限速、tracker
 调整、WebTorrent 升级或 Release/installer 改造。Phase 4.2 只持久化非敏感来源布尔偏好，不新增
@@ -50,3 +53,7 @@ Phase 4.5 完成后，v0.1 Search Sources 功能冻结：YTS、Nyaa 默认启用
 
 Phase 4.6 只处理 Release Candidate 阻断：产品标识、版本、公开文案、许可 notice 与明显开发占位；
 未新增 provider、下载能力、设置项或架构。本步不替代最终 production bundle、audit 与真实下载验收门。
+
+Phase 4 Final Acceptance Gate 已完成上述最终验收门。v0.1.0 RC 使用 YTS（Movies，默认开启）、
+Nyaa（Anime，默认开启）与 Knaben（Movies/TV，Beta，默认关闭）的冻结来源集合；没有新增功能、
+provider 或架构变更。

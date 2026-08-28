@@ -677,3 +677,63 @@ Windows production bundle 与 sidecar：
   Games/Software“暂无”、Knaben Beta、下载空状态、About 版本/隐私/致谢均可读且无明显溢出。
   关闭窗口后 `torlink-desktop.exe` 与 Node sidecar 进程数均为 0。
 - 按范围未运行 production bundle、完整 audit 或大型 torrent smoke；这些保留给最终 Acceptance Gate。
+
+## 2026-08-29 — Phase 4 Final Acceptance Gate — v0.1.0 RC
+
+结论：
+
+- **涌流404 v0.1.0 Release Candidate accepted.** 本次未发现 Release blocker，没有代码修复、功能
+  扩展、provider 变更或架构重构；仅记录最终验收结果。
+
+全量质量与安全 Gate：
+
+- Protocol、Core、i18n、Desktop typecheck 全部 PASS。
+- 全量 JS/TS：Protocol 7、i18n 2、Core 46、Desktop Vitest 23、Node sidecar 17，共 95 PASS。
+- 全量 Rust/Tauri：13 PASS；`cargo fmt --check` 与 `cargo check --locked` PASS。
+- `npm audit --omit=dev` 与 full `npm audit` 均为 0 vulnerabilities（0 low/moderate/high/critical）。
+- `git diff --check`、提交后的 `git show --check` PASS。
+
+Production build 与 runtime：
+
+- `npm run tauri -- build` PASS；Vite production build 109 modules，主 JS 300.97 kB，sidecar prepare
+  明确使用 Node `v24.20.0`。
+- 新生成 NSIS `涌流404_0.1.0_x64-setup.exe` 为 25,429,650 bytes；zh-CN MSI
+  `涌流404_0.1.0_x64_zh-CN.msi` 为 37,785,600 bytes。NSIS、MSI 与 release executable 的
+  ProductName/ProductVersion 均为“涌流404”/`0.1.0`；配置 identifier 为
+  `io.github.yongliu404.desktop`。
+- 将 release App 启动 PATH 限定为 `C:\Windows\System32` 后仍成功进入“本机服务准备就绪”；实际
+  child executable 为 release resources 下的 `sidecar/node.exe`，版本 `v24.20.0`，不依赖系统 Node。
+
+Authenticated IPC、Search Sources 与 Magnet：
+
+- release bundled sidecar 在随机 `127.0.0.1` 端口以随机 session token 启动；wrong token 返回
+  structured `unauthorized`，ping=`pong`、health=`ok`。本机 fixture search 同时返回 YTS/Nyaa，
+  现有全量测试继续覆盖 provider timeout/error isolation 与 cancel。
+- authenticated `download.add/list/pause/resume/remove` 全部通过；invalid magnet 返回
+  `invalid_magnet`，同一 infohash 重复添加返回 `duplicate_torrent`。Desktop 全量测试覆盖普通关键词、
+  magnet 自动切换 Add download、真实 `download.add` 调用和双语结构化错误展示。
+- fresh production profile 中 YTS=Movies/enabled、Nyaa=Anime/enabled、Knaben=Movies+TV/Beta/disabled；
+  disabled 时 All/Movies/TV 来源数为 2/1/0，启用后为 3/2/1。production App 重启后 Knaben 保持
+  enabled；再次关闭后界面立即恢复 2/1/0，最终偏好保留 disabled。
+- Knaben 极小公网 smoke 只发 1 次 `庆余年` 请求：默认关闭 0 结果/0 请求，显式启用返回 2 条且
+  hash/magnet 全部合法，再次禁用返回 0；没有下载任何公网搜索结果。
+
+合法 torrent、UI 与 shutdown：
+
+- 使用自建 8 MiB（8,388,608 bytes）确定性 fixture、本机 UDP tracker 与 128 KiB/s 限速 seeder。
+  实时样本为 downloaded=147,456、speed=158,936 B/s、ETA=51.85s、Peers=1。
+- pause 稳定后两次样本均为 147,456 bytes，download/upload speed 都为 0；resume 后增长到
+  327,680 bytes、speed=97,155 B/s、Peers=1，最终 100% / 8,388,608 bytes 并进入 seeding。
+- 源与下载文件 SHA-256 均为
+  `BDF23837181F5808331800C1AE2B4F7D7A839536B10D58491471C50DDE23833A`。remove 后任务消失，
+  文件仍存在；完成断言后清理临时 fixture 目录。
+- production UI 快速检查 Search、Downloads、Completed、Settings、About、zh-CN/en-US；确认
+  `v0.1.0 · RC`、Knaben Beta、Games/Software None、真实下载目录、无占位按钮、TorLink/WebTorrent
+  MIT attribution 与公网 IP 风险说明，无明显溢出或旧产品名。
+- 最终关闭应用后 desktop process=0、bundled sidecar=0、torrent smoke/testing Node=0。
+
+Release 文件：
+
+- `LICENSE` 为涌流404 项目 MIT；`THIRD_PARTY_NOTICES.md` 保留 TorLink 固定 revision/MIT attribution，
+  并记录 `webtorrent@3.0.21` 与 patched `bittorrent-tracker@11.2.3` 的 WebTorrent MIT notice；
+  `SECURITY.md` 与当前 loopback/token、非匿名和默认保留下载数据边界一致。
