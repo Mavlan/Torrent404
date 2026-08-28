@@ -51,6 +51,19 @@ describe("ProviderRegistry", () => {
     });
   });
 
+  it("separates an overridable default preference from static availability", () => {
+    const registry = new ProviderRegistry([
+      { ...provider("beta"), defaultEnabled: false },
+      { ...provider("unavailable"), enabled: false },
+    ]);
+
+    expect(registry.listEnabled()).toEqual([]);
+    expect(registry.describe().map(({ id, enabled }) => ({ id, enabled }))).toEqual([
+      { id: "beta", enabled: false },
+      { id: "unavailable", enabled: false },
+    ]);
+  });
+
   it("rejects duplicate or invalid provider metadata", () => {
     expect(() => new ProviderRegistry([provider("same"), provider("same")]))
       .toThrow("Duplicate provider id: same");

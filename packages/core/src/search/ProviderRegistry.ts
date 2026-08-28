@@ -43,15 +43,17 @@ export class ProviderRegistry {
   }
 
   listEnabled(): readonly SearchProvider[] {
-    return this.list().filter(({ enabled }) => enabled !== false);
+    return this.list().filter(({ enabled, defaultEnabled }) => (
+      enabled !== false && defaultEnabled !== false
+    ));
   }
 
   describe(): readonly SearchProviderDescriptor[] {
-    return this.list().map(({ id, displayName, categories, enabled }) => ({
+    return this.list().map(({ id, displayName, categories, enabled, defaultEnabled }) => ({
       id,
       displayName,
       categories: [...categories],
-      enabled: enabled !== false,
+      enabled: enabled !== false && defaultEnabled !== false,
     }));
   }
 }

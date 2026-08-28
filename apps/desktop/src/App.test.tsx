@@ -10,6 +10,7 @@ const providerResult = {
   providers: [
     { providerId: "yts", displayName: "YTS", categories: ["movies"], enabled: true },
     { providerId: "nyaa", displayName: "Nyaa", categories: ["anime"], enabled: true },
+    { providerId: "knaben", displayName: "Knaben", categories: ["movies", "tv"], enabled: false },
   ],
 } as const;
 
@@ -155,6 +156,9 @@ describe("desktop shell", () => {
     await user.click(screen.getByRole("button", { name: "English" }));
 
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", {
+      name: "Knaben · Movies & TV · Beta · Disabled",
+    })).not.toBeChecked();
     expect(document.documentElement.lang).toBe("en-US");
     expect(document.title).toBe("涌流404");
     await user.click(screen.getByRole("button", { name: "Search" }));
@@ -231,6 +235,40 @@ describe("desktop shell", () => {
     await user.click(screen.getByRole("button", { name: "搜索" }));
     expect(await screen.findByRole("button", { name: /动漫.*暂无/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /全部.*1 来源/ })).toBeInTheDocument();
+  });
+
+  it("keeps Knaben off by default and persists explicit enable and disable choices", async () => {
+    const user = userEvent.setup();
+    const firstRun = render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    const disabled = await screen.findByRole("switch", {
+      name: "Knaben · 影视 · Beta · 已停用",
+    });
+    expect(disabled).not.toBeChecked();
+    await user.click(disabled);
+    expect(screen.getByRole("switch", {
+      name: "Knaben · 影视 · Beta · 已启用",
+    })).toBeChecked();
+    await user.click(screen.getByRole("button", { name: "搜索" }));
+    expect(await screen.findByRole("button", { name: /全部.*3 来源/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /电影.*2 来源/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /剧集.*1 来源/ })).toBeInTheDocument();
+    firstRun.unmount();
+
+    const secondRun = render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    const restored = await screen.findByRole("switch", {
+      name: "Knaben · 影视 · Beta · 已启用",
+    });
+    expect(restored).toBeChecked();
+    await user.click(restored);
+    secondRun.unmount();
+
+    render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    expect(await screen.findByRole("switch", {
+      name: "Knaben · 影视 · Beta · 已停用",
+    })).not.toBeChecked();
   });
 
   it("recognizes a magnet and creates a download through the existing client", async () => {

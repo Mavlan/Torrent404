@@ -620,3 +620,32 @@ Windows production bundle 与 sidecar：
   凑数推荐第二个来源；Games/Software 继续显示暂无来源。
 - 本阶段只改文档，未实现 adapter、未修改架构或依赖；按要求未运行 tests、typecheck、Cargo、
   build 或 audit，仅执行 `git diff --check` 和提交状态检查。
+
+## 2026-08-29 — Phase 4.5 Knaben Search Provider
+
+完成：
+
+- 新增独立 `KnabenProvider`，只声明 Movies/TV；每次搜索只向官方 JSON v1 发一个 POST，使用官方
+  category IDs、`hide_unsafe=true`、`hide_xxx=true`，不翻页、不重试、不预抓取，也未新增依赖。
+- 只接受非空 title、合法 40-hex hash 以及 btih 与 hash 一致的 magnet；坏条目逐条丢弃。远端
+  Movies/TV 标签会归一化，缺失、畸形或已知误标安全保留为 `movies-tv`，不会拖垮 provider。
+- 403、429、5xx、其他 HTTP、malformed JSON 与 network failure 使用 `KnabenProviderError` 结构化；
+  timeout/cancel 继续沿用 `SearchAggregator`，Knaben failure 不影响 YTS/Nyaa 或其他健康来源。
+- 为既有 provider boundary 增加最小 `defaultEnabled` 初始偏好：它不改变静态 `enabled=false` 安全
+  边界。Knaben 默认不参与搜索，用户显式选择后才可运行；旧设置缺少 Knaben 键时采用默认 false，
+  开启/关闭继续使用原 v1 localStorage boolean map，未迁移 schema。
+- Settings 显示“Knaben · 影视 · Beta · 已停用”及英文对应文案；启用后 All +1、Movies +1、TV +1，
+  再次关闭立即恢复并持久化。Games/Software/Anime 不注册 Knaben。
+- sidecar bootstrap 和 prepare 脚本纳入 Knaben Core module；authenticated IPC descriptor 报告
+  `categories=[movies,tv]`、`enabled=false`，显式 provider selection 可启用默认关闭来源。
+
+局部验证：
+
+- Core Knaben/registry/aggregator/provider integration：20 PASS；Desktop UI/persistence：18 PASS；
+  i18n：2 PASS；Node sidecar search service：8 PASS；authenticated Rust sidecar 定向测试：1 PASS。
+- Core/Desktop typecheck、locked bundled Node `v24.20.0` sidecar prepare、`cargo fmt --check`、
+  `git diff --check`：PASS。
+- 极小公网 smoke 只请求一次 `庆余年`：默认关闭时 0 结果/0 请求；显式启用后返回 2 条结构化结果，
+  均有合法 40-hex hash 与 magnet；恢复默认关闭后仍为 0，最终网络请求总数 1。未下载任何结果。
+- 未运行 production bundle、full audit、完整 torrent smoke 或 Phase Final Acceptance。v0.1 Search
+  Sources 在 YTS + Nyaa + 默认关闭的 Knaben Beta 组合上冻结。

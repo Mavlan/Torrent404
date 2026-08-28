@@ -1,0 +1,23 @@
+{
+  "total": { "relation": "eq", "value": 2 },
+  "hits": [
+    {
+      "bytes": 1048576,
+      "category": "Movies / Foreign",
+      "hash": "ABCDEF0123456789ABCDEF0123456789ABCDEF01",
+      "magnetUrl": "magnet:?xt=urn:btih:ABCDEF0123456789ABCDEF0123456789ABCDEF01&dn=%E4%B8%AD%E6%96%87%E7%94%B5%E5%BD%B1%E6%B5%8B%E8%AF%95",
+      "peers": 3,
+      "seeders": 12,
+      "title": "中文电影测试"
+    },
+    {
+      "bytes": 2097152,
+      "category": "TV / HD",
+      "hash": "0123456789ABCDEF0123456789ABCDEF01234567",
+      "magnetUrl": "magnet:?dn=%E4%B8%AD%E6%96%87%E5%89%A7%E9%9B%86%E6%B5%8B%E8%AF%95&xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567",
+      "peers": 5,
+      "seeders": 21,
+      "title": "中文剧集测试"
+    }
+  ]
+}

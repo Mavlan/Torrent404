@@ -741,6 +741,12 @@ mod tests {
         assert_eq!(providers["providers"][0]["categories"][0], "movies");
         assert_eq!(providers["providers"][1]["providerId"], "nyaa");
         assert_eq!(providers["providers"][1]["categories"][0], "anime");
+        assert_eq!(providers["providers"][2]["providerId"], "knaben");
+        assert_eq!(
+            providers["providers"][2]["categories"],
+            json!(["movies", "tv"])
+        );
+        assert_eq!(providers["providers"][2]["enabled"], false);
         let started = supervisor
             .start_search("legal fixture", "all", None)
             .expect("search should start");

@@ -130,6 +130,8 @@ export const enUS = {
   "settings.sourceEnabled": "Enabled",
   "settings.sourceDisabled": "Disabled",
   "settings.sourceBuiltIn": "Built in",
+  "settings.sourceBeta": "Beta",
+  "settings.knabenCategories": "Movies & TV",
   "about.kicker": "About this build",
   "about.title": "About 涌流404",
   "about.subtitle": "Independent, transparent, and clear about its boundaries.",

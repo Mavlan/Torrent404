@@ -5,8 +5,10 @@ export interface SearchProvider {
   readonly id: string;
   readonly displayName: string;
   readonly categories: readonly string[];
-  /** Optional product configuration boundary; omitted providers remain enabled. */
+  /** Static availability boundary; false providers cannot be selected. */
   readonly enabled?: boolean;
+  /** Initial product preference; users may explicitly override it. */
+  readonly defaultEnabled?: boolean;
   search(query: string, signal: AbortSignal): AsyncIterable<SearchResult>;
   healthCheck?(): Promise<boolean>;
 }

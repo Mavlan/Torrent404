@@ -1,0 +1,37 @@
+{
+  "hits": [
+    null,
+    {
+      "title": "远端分类误标但资源有效",
+      "hash": "FEDCBA9876543210FEDCBA9876543210FEDCBA98",
+      "magnetUrl": "magnet:?xt=urn:btih:FEDCBA9876543210FEDCBA9876543210FEDCBA98",
+      "category": "Anime / non-english translated",
+      "bytes": "unknown",
+      "seeders": -1,
+      "peers": null
+    },
+    {
+      "title": "缺失分类但资源有效",
+      "hash": "1111111111111111111111111111111111111111",
+      "magnetUrl": "magnet:?xt=urn:btih:1111111111111111111111111111111111111111"
+    },
+    {
+      "title": "Invalid hash",
+      "hash": "not-a-hash",
+      "magnetUrl": "magnet:?xt=urn:btih:2222222222222222222222222222222222222222"
+    },
+    {
+      "title": "Missing magnet",
+      "hash": "2222222222222222222222222222222222222222"
+    },
+    {
+      "title": "Mismatched magnet",
+      "hash": "3333333333333333333333333333333333333333",
+      "magnetUrl": "magnet:?xt=urn:btih:4444444444444444444444444444444444444444"
+    },
+    {
+      "hash": "5555555555555555555555555555555555555555",
+      "magnetUrl": "magnet:?xt=urn:btih:5555555555555555555555555555555555555555"
+    }
+  ]
+}

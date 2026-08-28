@@ -76,6 +76,8 @@ function selectedProviders(
   if (!providerIds) return registry.listEnabled();
   return providerIds.flatMap((id) => {
     const provider = registry.get(id);
+    // An explicit caller selection overrides only the product default. A
+    // statically unavailable provider remains blocked.
     if (!provider || provider.enabled === false) return [];
     return [provider];
   });

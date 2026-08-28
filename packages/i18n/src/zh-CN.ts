@@ -128,6 +128,8 @@ export const zhCN = {
   "settings.sourceEnabled": "已启用",
   "settings.sourceDisabled": "已停用",
   "settings.sourceBuiltIn": "内置",
+  "settings.sourceBeta": "Beta",
+  "settings.knabenCategories": "影视",
   "about.kicker": "关于此版本",
   "about.title": "关于涌流404",
   "about.subtitle": "独立、透明、保持边界。",

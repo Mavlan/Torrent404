@@ -15,8 +15,9 @@ Phase 4 聚焦 v0.1.0 产品打磨。继续采用低额度模式：每步限制�
 4. **Phase 4.4 Minimum Chinese Provider Qualification**：用极少量中文关键词实测最有希望的通用
    候选；仅 Knaben 达到有限 Movies/TV 中文命中门槛，BT4G/TorrentKitty 因匿名访问 403 淘汰，
    Games/Software 暂无合格中文向来源。（本提交完成）
-5. **Phase 4.5 First Qualified Provider Adapter**：仅在后续明确指令下，一次实现一个 adapter 并使用
-   本地 fixture；不得接登录、个人 token、镜像轮换或 CAPTCHA/Cloudflare 绕过。（待执行）
+5. **Phase 4.5 Knaben Search Provider**：新增单请求 JSON adapter，仅注册 Movies/TV，使用
+   `defaultEnabled=false` 保持 Beta 来源默认关闭；复用现有 registry/aggregator、来源开关与持久化，
+   并对 hash/magnet、分类和 HTTP/JSON/network failure 做防御性处理。（本提交完成）
 
 Phase 4.1 不包含 `.torrent` 文件导入、任务持久化、新 provider、metadata/海报、限速、tracker
 调整、WebTorrent 升级或 Release/installer 改造。Phase 4.2 只持久化非敏感来源布尔偏好，不新增
@@ -38,3 +39,8 @@ provider 或 adapter。Phase 4.3 仅形成调查文档，未实现 AnimeGarden �
 来源；Games/Software 保持“暂无”，直到出现无需绕过访问防护且实际中文命中合格的候选。接口证据：
 [Knaben API v1](https://knaben.org/api/v1/)、[Knaben categories](https://knaben.org/browse/0/1/title)、
 [BT4G](https://bt4gprx.com/)、[TorrentKitty](https://www.torrentkitty.online/)。
+
+Phase 4.5 完成后，v0.1 Search Sources 功能冻结：YTS、Nyaa 默认启用，Knaben 作为 Movies/TV Beta
+默认关闭；不再自行新增 provider。Knaben 使用官方 JSON v1 的单次 POST、Movies/TV category IDs、
+`hide_unsafe=true` 和 `hide_xxx=true`，不翻页、不重试、不预抓取。远端 category 只做安全归一化，
+未知或误标统一保留为 `movies-tv`，不会导致整次搜索失败。

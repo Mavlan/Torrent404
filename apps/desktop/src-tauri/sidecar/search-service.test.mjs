@@ -5,8 +5,12 @@ import { ProviderRegistry } from "./core/ProviderRegistry.js";
 import { SearchAggregator } from "./core/SearchAggregator.js";
 import { SearchService } from "./search-service.mjs";
 
-function provider(id, search, { categories = ["test"], enabled = true } = {}) {
-  return { id, displayName: id.toUpperCase(), categories, enabled, search };
+function provider(
+  id,
+  search,
+  { categories = ["test"], enabled = true, defaultEnabled } = {},
+) {
+  return { id, displayName: id.toUpperCase(), categories, enabled, defaultEnabled, search };
 }
 
 async function collect(service, requestId, { cursor = 0, timeoutMs = 1_000 } = {}) {
@@ -182,6 +186,28 @@ test("honors the caller's enabled provider selection without invoking other sour
     requestId: "search-empty-selection",
     cancelled: false,
   }]);
+});
+
+test("allows explicit opt-in to a provider that is disabled only by default", async () => {
+  let betaCalls = 0;
+  const registry = new ProviderRegistry([
+    provider("beta", async function* () {
+      betaCalls += 1;
+      yield { id: "beta:1", title: "Beta", source: "beta" };
+    }, { categories: ["movies", "tv"], defaultEnabled: false }),
+  ]);
+  const service = new SearchService(registry, new SearchAggregator(registry));
+
+  assert.equal(service.providers().providers[0].enabled, false);
+  service.start("search-beta-default", "test", "movies");
+  await collect(service, "search-beta-default");
+  assert.equal(betaCalls, 0);
+
+  service.start("search-beta-opt-in", "test", "movies", ["beta"]);
+  const selected = await collect(service, "search-beta-opt-in");
+  assert.equal(betaCalls, 1);
+  assert.ok(selected.events.some((event) => event.type === "search.result"
+    && event.result.source === "beta"));
 });
 
 test("completes cleanly when no provider supports a category", async () => {

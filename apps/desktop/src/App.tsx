@@ -717,22 +717,34 @@ function App({
                   </div>
                   <div className="settings-source-list">
                     {!providersLoaded ? <span>{t("search.sourcesLoading")}</span> : null}
-                    {providers.map((provider) => (
-                      <article key={provider.providerId}>
-                        <div>
-                          <strong>{provider.displayName}</strong>
-                          <small>{provider.categories.map((item) => t(categoryLabelKeys[item])).join(" / ")} · {t(provider.enabled ? "settings.sourceEnabled" : "settings.sourceDisabled")}</small>
-                        </div>
-                        <button
-                          aria-checked={provider.enabled}
-                          aria-label={`${provider.displayName} · ${t(provider.enabled ? "settings.sourceEnabled" : "settings.sourceDisabled")}`}
-                          className={provider.enabled ? "source-toggle enabled" : "source-toggle"}
-                          onClick={() => toggleProvider(provider.providerId)}
-                          role="switch"
-                          type="button"
-                        ><i /></button>
-                      </article>
-                    ))}
+                    {providers.map((provider) => {
+                      const isKnaben = provider.providerId === "knaben";
+                      const stateLabel = t(provider.enabled
+                        ? "settings.sourceEnabled"
+                        : "settings.sourceDisabled");
+                      const categoryLabel = isKnaben
+                        ? t("settings.knabenCategories")
+                        : provider.categories.map((item) => t(categoryLabelKeys[item])).join(" / ");
+                      const details = `${categoryLabel}${isKnaben ? ` · ${t("settings.sourceBeta")}` : ""} · ${stateLabel}`;
+                      return (
+                        <article key={provider.providerId}>
+                          <div>
+                            <strong>{provider.displayName}</strong>
+                            <small>{details}</small>
+                          </div>
+                          <button
+                            aria-checked={provider.enabled}
+                            aria-label={isKnaben
+                              ? `${provider.displayName} · ${details}`
+                              : `${provider.displayName} · ${stateLabel}`}
+                            className={provider.enabled ? "source-toggle enabled" : "source-toggle"}
+                            onClick={() => toggleProvider(provider.providerId)}
+                            role="switch"
+                            type="button"
+                          ><i /></button>
+                        </article>
+                      );
+                    })}
                   </div>
                 </section>
                 <section className="setting-panel theme-panel">

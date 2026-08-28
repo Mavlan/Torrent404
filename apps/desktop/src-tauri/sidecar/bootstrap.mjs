@@ -6,6 +6,7 @@ import readline from "node:readline";
 
 import { ProviderRegistry } from "./core/ProviderRegistry.js";
 import { SearchAggregator } from "./core/SearchAggregator.js";
+import { KnabenProvider } from "./core/KnabenProvider.js";
 import { NyaaProvider } from "./core/NyaaProvider.js";
 import { YtsProvider } from "./core/YtsProvider.js";
 import { TorrentManager } from "./core/torrent/TorrentManager.js";
@@ -48,6 +49,7 @@ const providers = [
   new NyaaProvider(nyaaFixture
     ? { fetchImpl: fixtureFetch(nyaaFixture, "application/rss+xml") }
     : {}),
+  new KnabenProvider(),
 ];
 const providerRegistry = new ProviderRegistry(providers);
 const searchAggregator = new SearchAggregator(providerRegistry);

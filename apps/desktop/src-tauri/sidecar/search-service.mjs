@@ -65,9 +65,9 @@ export class SearchService {
 
     const selectedProviderIds = hasProviderSelection ? new Set(requestedProviderIds) : undefined;
     const providerIds = [...this.#providers.values()]
-      .filter((provider) => provider.enabled
+      .filter((provider) => (selectedProviderIds ? selectedProviderIds.has(provider.id) : provider.enabled)
         && (category === "all" || provider.categories.includes(category))
-        && (!selectedProviderIds || selectedProviderIds.has(provider.id)))
+      )
       .map(({ id }) => id);
     const controller = new AbortController();
     const session = {
