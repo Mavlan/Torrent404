@@ -602,3 +602,21 @@ Windows production bundle 与 sidecar：
 
 - 本阶段没有代码或依赖改动，按要求未运行 tests、typecheck、Cargo、build、audit 或 torrent smoke；
   仅执行文档 diff/check 和提交完整性检查。
+
+## 2026-08-29 — Phase 4.4 Minimum Chinese Provider Qualification
+
+为 Release 冲刺只核验三个最有希望的通用候选，并在信息足够后停止：
+
+| Provider | Movies | TV | Games | Software | 中文命中 | Interface | Maintenance | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Knaben | Partial（1/2） | Partial（1/2） | No（0/1） | No（0/1） | `流浪地球`、`庆余年` 命中；其余四词 0 | 匿名 JSON v1；直接 hash/magnet | Medium：分类误标需防御处理 | Qualified for Movies/TV beta；默认关闭 |
+| BT4G | 未核验 | 未核验 | 未核验 | 未核验 | 四类普通 search GET 均 403 | HTML/detail magnet | High | Reject；未绕过防护 |
+| TorrentKitty | 未核验 | 未核验 | 未核验 | 未核验 | 匿名入口 403 | HTML magnet search | High | Reject；未绕过防护 |
+
+- 关键词只使用 Movies `流浪地球` / `你好李焕英`、TV `庆余年` / `狂飙`、Games `黑神话`、Software
+  `Windows 中文`。Knaben 当前匿名可达、无需登录/CAPTCHA，成功命中均带可用 hash/magnet；但只
+  能有限补充 Movies/TV，且 Movies 分类出现上游误标。
+- **v0.1 Recommended Chinese Provider Set：仅 Knaben（Movies + TV beta，建议默认关闭）。** 不为
+  凑数推荐第二个来源；Games/Software 继续显示暂无来源。
+- 本阶段只改文档，未实现 adapter、未修改架构或依赖；按要求未运行 tests、typecheck、Cargo、
+  build 或 audit，仅执行 `git diff --check` 和提交状态检查。
