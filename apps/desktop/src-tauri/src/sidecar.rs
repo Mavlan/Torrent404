@@ -306,11 +306,21 @@ impl SidecarSupervisor {
         Ok(response)
     }
 
-    pub(crate) fn start_search(&self, query: &str, category: &str) -> Result<Value, SidecarError> {
+    pub(crate) fn start_search(
+        &self,
+        query: &str,
+        category: &str,
+        provider_ids: Option<&[String]>,
+    ) -> Result<Value, SidecarError> {
         let request_id = format!("search-{}", generate_random_hex(16)?);
         self.command(
             "search.start",
-            json!({ "requestId": request_id, "query": query, "category": category }),
+            json!({
+                "requestId": request_id,
+                "query": query,
+                "category": category,
+                "providerIds": provider_ids,
+            }),
         )?
         .result
         .ok_or(SidecarError::IpcProtocol)
@@ -732,7 +742,7 @@ mod tests {
         assert_eq!(providers["providers"][1]["providerId"], "nyaa");
         assert_eq!(providers["providers"][1]["categories"][0], "anime");
         let started = supervisor
-            .start_search("legal fixture", "all")
+            .start_search("legal fixture", "all", None)
             .expect("search should start");
         let request_id = started["requestId"]
             .as_str()
@@ -773,7 +783,7 @@ mod tests {
             .iter()
             .any(|event| { event["type"] == "search.complete" && event["cancelled"] == false }));
         let second = supervisor
-            .start_search("second fixture", "all")
+            .start_search("second fixture", "all", None)
             .expect("second search should start");
         let second_request_id = second["requestId"]
             .as_str()

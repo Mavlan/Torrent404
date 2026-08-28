@@ -151,6 +151,39 @@ test("filters providers by category and skips disabled providers", async () => {
   assert.ok(events.some((event) => event.type === "search.result" && event.result.source === "movies"));
 });
 
+test("honors the caller's enabled provider selection without invoking other sources", async () => {
+  let moviesCalls = 0;
+  let animeCalls = 0;
+  const registry = new ProviderRegistry([
+    provider("movies", async function* () {
+      moviesCalls += 1;
+      yield { id: "movies:1", title: "Movie", source: "movies" };
+    }, { categories: ["movies"] }),
+    provider("anime", async function* () {
+      animeCalls += 1;
+      yield { id: "anime:1", title: "Anime", source: "anime" };
+    }, { categories: ["anime"] }),
+  ]);
+  const service = new SearchService(registry, new SearchAggregator(registry));
+
+  service.start("search-selection", "legal fixture", "all", ["anime"]);
+  const selected = await collect(service, "search-selection");
+  assert.equal(moviesCalls, 0);
+  assert.equal(animeCalls, 1);
+  assert.ok(selected.events.some((event) => event.type === "search.result" && event.result.source === "anime"));
+  assert.ok(!selected.events.some((event) => event.type === "search.result" && event.result.source === "movies"));
+
+  service.start("search-empty-selection", "legal fixture", "all", []);
+  const empty = await collect(service, "search-empty-selection");
+  assert.equal(moviesCalls, 0);
+  assert.equal(animeCalls, 1);
+  assert.deepEqual(empty.events, [{
+    type: "search.complete",
+    requestId: "search-empty-selection",
+    cancelled: false,
+  }]);
+});
+
 test("completes cleanly when no provider supports a category", async () => {
   let calls = 0;
   const registry = new ProviderRegistry([

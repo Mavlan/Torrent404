@@ -12,7 +12,7 @@
 8. **Phase 3.4 Start Download IPC**：复用 authenticated IPC v1，通过 `TorrentManager → TorrentEngine → WebTorrentAdapter` 从搜索结果创建真实下载任务，并在“下载中”显示初始任务。（本提交完成）
 9. **Phase 3.4.1 Download Runtime Fix**：为搜索 adapter 生成的最小 magnet 补充 WebTorrent tracker fallback，确保真实任务持续 peer discovery 与写盘；使用本地合法 torrent 完成 `tauri dev` smoke。（本提交完成）
 10. **Phase 3.4.2 Task Controls**：在 authenticated IPC v1 增加 pause/resume/remove；所有操作经 `TorrentManager` 和 `DownloadTaskModel`，remove 默认保留本地文件，桌面端提供双语按钮与删除确认。（本提交完成）
-11. **Phase 3.4.3 Magnet Direct Add**：将搜索框中的 magnet/infohash 识别为直接添加操作；保持与 Phase 3.4 相同的校验、去重与错误边界。（待执行）
+11. **Magnet Direct Add**：已移至 Phase 4.1，仅识别 magnet 并保持与 Phase 3.4 相同的校验、去重与错误边界。（见 `PHASE_4_STEPS.md`）
 12. **Phase 3.5 Live Download Progress**：通过 authenticated IPC v1 的 `download.list` 每 750ms 获取 `TorrentManager` snapshot；桌面端实时展示进度、传输量、上下行速度、ETA、Peers 和状态，并完成真实 pause/resume/completion smoke。（本提交完成）
 13. **Phase 3 Final Acceptance Gate**：完成 workspace 全量检查、production Windows bundle、无系统 Node 假设下的 bundled sidecar 启动、authenticated IPC 全命令、provider 隔离及合法 torrent 的实时进度/控制/完成/退出链路验收；修复 Desktop 全量测试误收集 Node-native sidecar suite 的测试边界。（完成）
 

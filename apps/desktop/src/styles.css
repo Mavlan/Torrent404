@@ -249,7 +249,10 @@ nav { position: relative; z-index: 1; display: grid; gap: 4px; }
 .settings-source-list article div strong, .settings-source-list article div small { display: block; }
 .settings-source-list article div strong { font-size: 12px; }
 .settings-source-list article div small { margin-top: 4px; color: var(--muted); font-size: 10px; }
-.settings-source-list article > span { color: var(--signal); font-size: 10px; white-space: nowrap; }
+.source-toggle { position: relative; flex: 0 0 auto; width: 42px; height: 23px; padding: 0; border: 1px solid var(--line-strong); background: var(--surface-2); cursor: pointer; }
+.source-toggle i { position: absolute; top: 4px; left: 4px; width: 13px; height: 13px; background: var(--muted); transition: left 140ms ease, background 140ms ease; }
+.source-toggle.enabled { border-color: color-mix(in srgb, var(--signal) 65%, var(--line)); background: color-mix(in srgb, var(--signal) 12%, var(--surface-2)); }
+.source-toggle.enabled i { left: 23px; background: var(--signal); box-shadow: 0 0 10px color-mix(in srgb, var(--signal) 55%, transparent); }
 .segmented { display: flex; padding: 3px; border: 1px solid var(--line); background: var(--surface); }
 .segmented button { padding: 9px 12px; border: 0; background: transparent; color: var(--muted); font-size: 11px; cursor: pointer; }
 .segmented button.selected { background: var(--signal); color: #14200e; font-weight: 700; }

@@ -33,6 +33,10 @@ function shellDownloadClient(): DownloadClient {
   };
 }
 
+function searchActionButton(): HTMLElement {
+  return screen.getAllByRole("button", { name: "搜索" }).at(-1)!;
+}
+
 describe("desktop shell", () => {
   it("renders human-readable category counts from provider descriptors", async () => {
     render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
@@ -172,21 +176,120 @@ describe("desktop shell", () => {
 
     expect(screen.getByRole("heading", { name: "当前暂无剧集搜索来源" })).toBeInTheDocument();
     expect(screen.getByText("更多搜索来源将在后续版本加入。")).toBeInTheDocument();
-    const searchButton = screen.getByRole("button", { name: /^开始搜索/ });
+    const searchButton = searchActionButton();
     expect(searchButton).toBeDisabled();
     await user.click(searchButton);
     expect(client.start).not.toHaveBeenCalled();
   });
 
-  it("shows current built-in sources in Settings without management controls", async () => {
+  it("toggles session search sources and updates category availability", async () => {
+    const client = shellClient();
     const user = userEvent.setup();
-    render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
+    render(<App searchClient={client} downloadClient={shellDownloadClient()} />);
 
     await user.click(screen.getByRole("button", { name: "设置" }));
     expect(await screen.findByRole("heading", { name: "内置搜索来源" })).toBeInTheDocument();
     expect(screen.getByText("YTS")).toBeInTheDocument();
     expect(screen.getByText("Nyaa")).toBeInTheDocument();
-    expect(screen.getAllByText("内置 · 已启用")).toHaveLength(2);
+    const nyaaToggle = screen.getByRole("switch", { name: "Nyaa · 已启用" });
+    expect(nyaaToggle).toBeChecked();
+    await user.click(nyaaToggle);
+    expect(screen.getByRole("switch", { name: "Nyaa · 已停用" })).not.toBeChecked();
+
+    await user.click(screen.getByRole("button", { name: "搜索" }));
+    expect(await screen.findByRole("button", { name: /动漫.*暂无/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /全部.*1 来源/ })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /动漫.*暂无/ }));
+    expect(searchActionButton()).toBeDisabled();
+    expect(client.start).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    await user.click(screen.getByRole("switch", { name: "YTS · 已启用" }));
+    await user.click(screen.getByRole("button", { name: "搜索" }));
+    await user.click(screen.getByRole("button", { name: /全部.*暂无/ }));
+    const input = screen.getByPlaceholderText("输入关键词、Magnet 或 infohash");
+    await user.type(input, "nothing should run");
+    expect(searchActionButton()).toBeDisabled();
+    expect(client.start).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    await user.click(screen.getByRole("switch", { name: "Nyaa · 已停用" }));
+    await user.click(screen.getByRole("button", { name: "搜索" }));
+    expect(await screen.findByRole("button", { name: /动漫.*1 来源/ })).toBeInTheDocument();
+  });
+
+  it("recognizes a magnet and creates a download through the existing client", async () => {
+    const client = shellClient();
+    const magnet = "magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01";
+    const downloads: DownloadClient = {
+      ...shellDownloadClient(),
+      add: vi.fn().mockResolvedValue({
+        ok: true,
+        protocolVersion: 1,
+        command: "download.add",
+        result: {
+          taskId: "download-direct-magnet",
+          task: {
+            id: "download-direct-magnet",
+            infoHash: "abcdef0123456789abcdef0123456789abcdef01",
+            name: "Magnet download",
+            status: "downloading",
+            progress: 0,
+            downloadSpeed: 0,
+            uploadSpeed: 0,
+            downloaded: 0,
+            total: 0,
+            savePath: "C:\\Users\\Tester\\Downloads\\涌流404",
+          },
+        },
+      }),
+      list: vi.fn().mockRejectedValue(new Error("poll not expected")),
+    };
+    const user = userEvent.setup();
+    render(<App searchClient={client} downloadClient={downloads} />);
+
+    await user.type(screen.getByPlaceholderText("输入关键词、Magnet 或 infohash"), magnet);
+    const addButton = screen.getByRole("button", { name: "添加下载" });
+    expect(addButton).toHaveAttribute("data-mode", "magnet");
+    await user.click(addButton);
+
+    expect(downloads.add).toHaveBeenCalledWith({ magnet });
+    expect(client.start).not.toHaveBeenCalled();
+    expect(await screen.findByText("download-direct-magnet")).toBeInTheDocument();
+    expect(screen.getByText("下载任务已创建，可在“下载中”查看。")).toBeInTheDocument();
+  });
+
+  it("localizes invalid and duplicate direct magnet errors", async () => {
+    const client = shellClient();
+    const downloads: DownloadClient = {
+      ...shellDownloadClient(),
+      add: vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          protocolVersion: 1,
+          error: { code: "invalid_magnet", message: "private parser detail" },
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          protocolVersion: 1,
+          error: { code: "duplicate_torrent", message: "private task identity" },
+        }),
+    };
+    const user = userEvent.setup();
+    render(<App searchClient={client} downloadClient={downloads} />);
+    const input = screen.getByPlaceholderText("输入关键词、Magnet 或 infohash");
+
+    await user.type(input, "magnet:?xt=urn:btih:not-valid");
+    await user.click(screen.getByRole("button", { name: "添加下载" }));
+    expect(await screen.findByText("这个 Magnet 无效，无法创建下载任务。")).toBeInTheDocument();
+    expect(screen.queryByText("private parser detail")).not.toBeInTheDocument();
+
+    await user.clear(input);
+    await user.type(input, "magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01");
+    await user.click(screen.getByRole("button", { name: "添加下载" }));
+    expect(await screen.findByText("这个 Torrent 已在下载列表中。")).toBeInTheDocument();
+    expect(screen.queryByText("private task identity")).not.toBeInTheDocument();
+    expect(client.start).not.toHaveBeenCalled();
   });
 
   it("renders YTS and Nyaa results incrementally from IPC", async () => {
@@ -322,13 +425,13 @@ describe("desktop shell", () => {
     render(<App searchClient={client} downloadClient={downloads} />);
 
     await user.type(screen.getByPlaceholderText("输入关键词、Magnet 或 infohash"), "open media");
-    await user.click(screen.getByRole("button", { name: /^开始搜索/ }));
+    await user.click(searchActionButton());
 
     expect(await screen.findByRole("heading", { name: "Public Domain Film" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Open Animation Test" })).toBeInTheDocument();
     expect(screen.getByText(/1\.0 MiB/)).toBeInTheDocument();
     expect(screen.getByText(/1\.5 GiB/)).toBeInTheDocument();
-    expect(client.start).toHaveBeenCalledWith("open media", "all");
+    expect(client.start).toHaveBeenCalledWith("open media", "all", ["yts", "nyaa"]);
     expect(client.poll).toHaveBeenNthCalledWith(1, requestId, 0);
     expect(client.poll).toHaveBeenNthCalledWith(2, requestId, 2);
 
@@ -400,7 +503,7 @@ describe("desktop shell", () => {
     render(<App searchClient={client} downloadClient={downloads} />);
 
     await user.type(screen.getByPlaceholderText("输入关键词、Magnet 或 infohash"), "fixture");
-    await user.click(screen.getByRole("button", { name: /^开始搜索/ }));
+    await user.click(searchActionButton());
     const buttons = await screen.findAllByRole("button", { name: "下载" });
     expect(buttons[0]).toBeDisabled();
     expect(buttons[0]).toHaveAttribute("title", "该结果没有可用的 Magnet，暂时无法下载");
@@ -439,14 +542,14 @@ describe("desktop shell", () => {
     const input = screen.getByPlaceholderText("输入关键词、Magnet 或 infohash");
 
     await user.type(input, "first");
-    await user.click(screen.getByRole("button", { name: /^开始搜索/ }));
+    await user.click(searchActionButton());
     await waitFor(() => expect(client.poll).toHaveBeenCalledWith("search-old", 0));
     await user.clear(input);
     await user.type(input, "second");
-    await user.click(screen.getByRole("button", { name: /^开始搜索/ }));
+    await user.click(searchActionButton());
 
     await waitFor(() => expect(client.cancel).toHaveBeenCalledWith("search-old"));
-    await waitFor(() => expect(client.start).toHaveBeenLastCalledWith("second", "all"));
+    await waitFor(() => expect(client.start).toHaveBeenLastCalledWith("second", "all", ["yts", "nyaa"]));
     finishOldPoll({ requestId: "search-old", events: [], nextCursor: 0, done: true });
   });
 
@@ -468,9 +571,9 @@ describe("desktop shell", () => {
 
     await user.click(screen.getByRole("button", { name: /电影/ }));
     await user.type(screen.getByPlaceholderText("输入关键词、Magnet 或 infohash"), "legal movie");
-    await user.click(screen.getByRole("button", { name: /^开始搜索/ }));
+    await user.click(searchActionButton());
 
-    await waitFor(() => expect(client.start).toHaveBeenCalledWith("legal movie", "movies"));
+    await waitFor(() => expect(client.start).toHaveBeenCalledWith("legal movie", "movies", ["yts"]));
     expect(screen.getByText("YTS")).toBeInTheDocument();
     expect(screen.queryByText("Nyaa")).not.toBeInTheDocument();
   });

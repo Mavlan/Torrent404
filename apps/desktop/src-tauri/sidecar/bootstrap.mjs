@@ -194,7 +194,12 @@ async function handleCommand(response, request) {
         ok: true,
         protocolVersion: IPC_PROTOCOL_VERSION,
         command: "search.start",
-        result: searchService.start(request.requestId, request.query, request.category),
+        result: searchService.start(
+          request.requestId,
+          request.query,
+          request.category,
+          request.providerIds,
+        ),
       });
       return;
     }

@@ -17,6 +17,7 @@ import {
   type SearchResult,
 } from "@torlink/protocol";
 import { desktopDownloadClient, type DownloadClient } from "./downloadClient";
+import { isMagnetInput } from "./magnetInput";
 import { desktopSearchClient, type SearchClient } from "./searchClient";
 
 type Page = "search" | "downloading" | "completed" | "settings" | "about";
@@ -184,6 +185,7 @@ function App({
   const [providersLoaded, setProvidersLoaded] = useState(false);
   const [searchState, setSearchState] = useState<"idle" | "searching" | "complete" | "error">("idle");
   const [downloadTasks, setDownloadTasks] = useState<DownloadTask[]>([]);
+  const [addingMagnet, setAddingMagnet] = useState(false);
   const [addingResultIds, setAddingResultIds] = useState<Set<string>>(new Set());
   const [controllingTaskIds, setControllingTaskIds] = useState<Set<string>>(new Set());
   const [downloadDirectory, setDownloadDirectory] = useState<string | null>(null);
@@ -202,6 +204,7 @@ function App({
     ),
     [category, providers],
   );
+  const magnetMode = isMagnetInput(query);
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -318,7 +321,11 @@ function App({
       }
       if (activeSearch.current.generation !== generation) return;
 
-      const started = await searchClient.start(value, category);
+      const started = await searchClient.start(
+        value,
+        category,
+        activeProviders.map((provider) => provider.providerId),
+      );
       if (activeSearch.current.generation !== generation) {
         await searchClient.cancel(started.requestId).catch(() => undefined);
         return;
@@ -349,13 +356,40 @@ function App({
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!providersLoaded || activeProviders.length === 0) return;
     const value = query.trim();
     if (!value) {
       setNotice("error.queryRequired");
       return;
     }
+    if (isMagnetInput(value)) {
+      void addMagnetDownload(value);
+      return;
+    }
+    if (!providersLoaded || activeProviders.length === 0) return;
     void runSearch(value);
+  };
+
+  const addMagnetDownload = async (magnet: string) => {
+    if (addingMagnet) return;
+    cancelCurrentSearch();
+    setAddingMagnet(true);
+    setNotice(null);
+    try {
+      const response = await downloadClient.add({ magnet });
+      if (!response.ok) {
+        setNotice(downloadErrorLabel(response.error.code));
+        return;
+      }
+      setDownloadTasks((current) => current.some((task) => task.id === response.result.taskId)
+        ? current
+        : [...current, response.result.task]);
+      setPage("downloading");
+      setNotice("download.added");
+    } catch {
+      setNotice("error.downloadUnavailable");
+    } finally {
+      setAddingMagnet(false);
+    }
   };
 
   const addDownload = async (result: SearchResult) => {
@@ -422,6 +456,17 @@ function App({
     }
   };
 
+  const toggleProvider = (providerId: string) => {
+    cancelCurrentSearch();
+    setProviders((current) => current.map((provider) => (
+      provider.providerId === providerId ? { ...provider, enabled: !provider.enabled } : provider
+    )));
+    setSearchResults([]);
+    setProviderStatuses({});
+    setSearchState("idle");
+    setNotice(null);
+  };
+
   const providerCountFor = (item: SearchCategory): number => providers.filter(
     (provider) => provider.enabled && (item === "all" || provider.categories.includes(item)),
   ).length;
@@ -478,7 +523,7 @@ function App({
           <Icon name="shield" />
           <div><strong>{t("status.localOnly")}</strong><span>{t("status.localOnlyBody")}</span></div>
         </div>
-        <p className="version-label">v0.1.0 · PHASE 3.5</p>
+        <p className="version-label">v0.1.0 · PHASE 4.1</p>
       </aside>
 
       <main className="workspace">
@@ -525,7 +570,14 @@ function App({
                 <label className="sr-only" htmlFor="global-search">{t("search.fieldLabel")}</label>
                 <input id="global-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("search.placeholder")} autoComplete="off" />
                 <kbd>ENTER</kbd>
-                <button disabled={!providersLoaded || activeProviders.length === 0} type="submit">{t("search.action")}<span aria-hidden="true">↗</span></button>
+                <button
+                  data-mode={magnetMode ? "magnet" : "search"}
+                  disabled={addingMagnet || (!magnetMode && (!providersLoaded || activeProviders.length === 0))}
+                  type="submit"
+                >
+                  {addingMagnet ? t("search.addingDownload") : t(magnetMode ? "search.addDownload" : "search.action")}
+                  <span aria-hidden="true">↗</span>
+                </button>
               </form>
 
               <section className="source-panel" aria-label={t("search.sourcesTitle")}>
@@ -658,8 +710,18 @@ function App({
                     {!providersLoaded ? <span>{t("search.sourcesLoading")}</span> : null}
                     {providers.map((provider) => (
                       <article key={provider.providerId}>
-                        <div><strong>{provider.displayName}</strong><small>{provider.categories.map((item) => t(categoryLabelKeys[item])).join(" / ")}</small></div>
-                        <span>{t("settings.sourceBuiltIn")} · {t(provider.enabled ? "settings.sourceEnabled" : "settings.sourceDisabled")}</span>
+                        <div>
+                          <strong>{provider.displayName}</strong>
+                          <small>{provider.categories.map((item) => t(categoryLabelKeys[item])).join(" / ")} · {t(provider.enabled ? "settings.sourceEnabled" : "settings.sourceDisabled")}</small>
+                        </div>
+                        <button
+                          aria-checked={provider.enabled}
+                          aria-label={`${provider.displayName} · ${t(provider.enabled ? "settings.sourceEnabled" : "settings.sourceDisabled")}`}
+                          className={provider.enabled ? "source-toggle enabled" : "source-toggle"}
+                          onClick={() => toggleProvider(provider.providerId)}
+                          role="switch"
+                          type="button"
+                        ><i /></button>
                       </article>
                     ))}
                   </div>

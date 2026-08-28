@@ -36,13 +36,18 @@ export class SearchService {
     };
   }
 
-  start(requestId, query, category = "all") {
+  start(requestId, query, category = "all", requestedProviderIds) {
     const normalizedQuery = typeof query === "string" ? query.trim() : "";
+    const hasProviderSelection = requestedProviderIds !== undefined && requestedProviderIds !== null;
     if (
       !REQUEST_ID.test(requestId ?? "")
       || normalizedQuery.length === 0
       || normalizedQuery.length > MAX_QUERY_LENGTH
       || !SEARCH_CATEGORIES.has(category)
+      || (hasProviderSelection && (
+        !Array.isArray(requestedProviderIds)
+        || requestedProviderIds.some((providerId) => typeof providerId !== "string")
+      ))
     ) {
       throw new SearchCommandError(
         "invalid_search_request",
@@ -58,8 +63,11 @@ export class SearchService {
       );
     }
 
+    const selectedProviderIds = hasProviderSelection ? new Set(requestedProviderIds) : undefined;
     const providerIds = [...this.#providers.values()]
-      .filter((provider) => provider.enabled && (category === "all" || provider.categories.includes(category)))
+      .filter((provider) => provider.enabled
+        && (category === "all" || provider.categories.includes(category))
+        && (!selectedProviderIds || selectedProviderIds.has(provider.id)))
       .map(({ id }) => id);
     const controller = new AbortController();
     const session = {

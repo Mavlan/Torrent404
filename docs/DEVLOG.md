@@ -537,3 +537,28 @@ Windows production bundle 与 sidecar：
   `8B065F520886246E8004A2968B437FABB0E51E927B763576B4FF61E4EED4FE38`。
 - remove 经过确认后从任务列表移除，默认保留下载文件；关闭桌面窗口和 tracker 后，未发现
   `torlink-desktop.exe`、TorLink `bootstrap.mjs` sidecar 或 acceptance helper 遗留进程。
+
+## 2026-08-29 — Phase 4.1 Magnet Direct Add + Source Toggles
+
+完成：
+
+- 搜索框现在识别 `magnet:` 输入并把主操作切换为“添加下载 / Add download”；提交继续复用既有
+  authenticated `download.add → DownloadService → TorrentManager → WebTorrentAdapter`，没有新增
+  下载路径。普通关键词仍进入原有增量搜索。
+- invalid magnet、duplicate torrent 与 Core/sidecar failure 继续使用既有结构化错误和中英文产品
+  文案，不向 UI 暴露内部错误详情。
+- 设置页为 YTS/Nyaa 增加 session 内启用开关；分类来源数和无来源状态立即随当前启用来源更新。
+  UI 不会在全部关闭或当前分类无来源时发起搜索。
+- authenticated `search.start` 新增可选 `providerIds`，Rust bridge 与 sidecar 只把调用方当前启用的
+  registry provider ID 交给既有 `SearchAggregator`；未知或静态禁用来源不会因此被启用。
+- 仓库当前没有适合复用的设置持久化机制，因此本步不引入数据库或宽泛文件权限。开关关闭应用后
+  恢复默认启用，最小安全持久化记录为 Phase 4.2。
+
+局部验证：
+
+- magnet detection/direct-add 与 Desktop source toggle UI：15 PASS；i18n：2 PASS；Core provider
+  registry/aggregator：10 PASS；bundled Node sidecar provider selection：7 PASS。
+- authenticated Rust search IPC 定向测试：1 PASS；Protocol/Core/Desktop typecheck、shared
+  protocol/i18n build、`cargo fmt --check` 与 `cargo check --locked`：PASS。
+- 未运行完整 acceptance gate、production bundle、audit、大型 torrent smoke 或 `tauri dev`；既有
+  Phase 3 下载、sidecar lifecycle、authenticated IPC 与 WebTorrent 架构未重构。

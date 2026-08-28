@@ -46,6 +46,8 @@ export interface SearchStartRequest extends IpcRequest {
   requestId: string;
   query: string;
   category: SearchCategory;
+  /** Optional session-level product selection; omitted keeps the default enabled set. */
+  providerIds?: string[];
 }
 
 export interface SearchProviderDescriptor {

@@ -23,10 +23,11 @@ fn use_sidecar(
 fn search_start(
     query: String,
     category: String,
+    provider_ids: Option<Vec<String>>,
     state: State<'_, Mutex<SidecarSupervisor>>,
 ) -> Result<Value, String> {
     use_sidecar(state, |supervisor| {
-        supervisor.start_search(&query, &category)
+        supervisor.start_search(&query, &category, provider_ids.as_deref())
     })
 }
 
