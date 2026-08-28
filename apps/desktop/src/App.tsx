@@ -532,7 +532,7 @@ function App({
           <Icon name="shield" />
           <div><strong>{t("status.localOnly")}</strong><span>{t("status.localOnlyBody")}</span></div>
         </div>
-        <p className="version-label">v0.1.0 · PHASE 4.1</p>
+        <p className="version-label">v0.1.0 · RC</p>
       </aside>
 
       <main className="workspace">
@@ -707,7 +707,6 @@ function App({
                 <section className="setting-panel">
                   <div className="setting-icon"><Icon name="folder" /></div>
                   <div><p className="section-kicker">{t("settings.downloadKicker")}</p><h2>{t("settings.downloadTitle")}</h2><p>{t("settings.downloadBody")}</p><code>{downloadDirectory ?? "C:\\Users\\…\\Downloads\\涌流404"}</code></div>
-                  <button type="button" onClick={() => setNotice("settings.changePending")}>{t("settings.change")}</button>
                 </section>
                 <section className="setting-panel source-settings-panel">
                   <div>
@@ -776,7 +775,7 @@ function App({
               <div className="page-heading"><p className="section-kicker">{t("about.kicker")}</p><h1>{t("about.title")}</h1><span>{t("about.subtitle")}</span></div>
               <div className="about-grid">
                 <section className="about-lead"><span className="about-number">404</span><h2>{t("about.privacyTitle")}</h2><p>{t("about.privacyBody")}</p></section>
-                <section className="about-card"><p className="section-kicker">{t("about.creditsKicker")}</p><h2>{t("about.creditsTitle")}</h2><p>{t("about.creditsBody")}</p><div className="license-row"><span>TorLink</span><b>MIT</b></div><div className="license-row"><span>WebTorrent</span><b>MIT</b></div></section>
+                <section className="about-card"><p className="section-kicker">{t("about.creditsKicker")}</p><h2>{t("about.creditsTitle")}</h2><p>{t("about.creditsBody")}</p><div className="license-row"><span>{t("about.versionLabel")}</span><b>0.1.0</b></div><div className="license-row"><span>TorLink</span><b>MIT</b></div><div className="license-row"><span>WebTorrent</span><b>MIT</b></div></section>
               </div>
             </>
           ) : null}

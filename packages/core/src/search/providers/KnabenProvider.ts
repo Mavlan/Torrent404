@@ -139,7 +139,7 @@ export class KnabenProvider implements SearchProvider {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
-          "User-Agent": "TorLink-Desktop/0.1.0",
+          "User-Agent": "Yongliu404/0.1.0",
         },
         body: JSON.stringify({
           search_type: "100%",

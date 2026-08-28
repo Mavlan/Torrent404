@@ -13,6 +13,8 @@ describe("Tauri Windows bundle configuration", () => {
 
   it("uses a Chinese WiX locale for the Chinese product metadata", () => {
     expect(config.productName).toBe("涌流404");
+    expect(config.version).toBe("0.1.0");
+    expect(config.identifier).toBe("io.github.yongliu404.desktop");
     expect(config.app.windows[0]?.title).toBe("涌流404");
     expect(config.bundle.shortDescription).toContain("涌流404");
     expect(config.bundle.targets).toContain("msi");

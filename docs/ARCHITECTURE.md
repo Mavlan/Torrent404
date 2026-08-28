@@ -1,4 +1,4 @@
-# TorLink Desktop 架构说明
+# 涌流404 架构说明
 
 状态：Phase 0 基线  
 目标版本：v0.1.0  
@@ -7,7 +7,7 @@
 
 ## 1. 架构目标
 
-TorLink Desktop 是中文优先、无中央代理服务的本地 BitTorrent 搜索与下载桌面客户端。v0.1.0 必须让未安装 Node.js、Git、Rust 或命令行工具的 Windows 用户通过 GitHub Release 安装并运行。
+涌流404 是中文优先、无中央代理服务的本地 BitTorrent 搜索与下载桌面客户端。v0.1.0 必须让未安装 Node.js、Git、Rust 或命令行工具的 Windows 用户通过 GitHub Release 安装并运行。
 
 架构必须同时满足以下约束：
 
@@ -173,4 +173,3 @@ app-data/
 - core 使用 fake providers/fake torrent engine 可测试失败隔离和状态转换。
 - sidecar 无法绑定非 loopback 地址，错误 token 被拒绝，日志中检索不到 token。
 - 发布包在无 Node.js 的 Windows 测试环境中启动。
-

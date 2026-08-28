@@ -1,20 +1,19 @@
-# 涌流
+# 涌流404
 
-一个现代、中文优先的开源 BitTorrent 搜索与下载桌面客户端。当前仓库正在按 `TorLink Desktop v0.1.0 Codex 开发手册` 分阶段实现。
+一个现代、中文优先的开源 BitTorrent 搜索与下载桌面客户端。当前版本为 `0.1.0` Release Candidate。
 
-> 涌流是独立的社区项目，不是 TorLink 官方版本。项目受 TorLink 启发，并计划在遵守 MIT License 的前提下复用其成熟的搜索与下载逻辑。
+> 涌流404 是独立的社区项目，不是 TorLink 官方版本。项目受 TorLink 启发，并在遵守 MIT License 的前提下复用其部分成熟思路与逻辑。
 
 ## 当前状态
 
-Phase 0 Recon 已完成，Phase 1 Scaffold 已建立：
+v0.1.0 当前已具备：
 
 - npm workspaces monorepo；
 - Tauri 2 + React 19 + TypeScript 桌面 shell；
 - 独立的 `protocol`、`core` 和 `i18n` 包；
-- 中文导航、空状态、设置与关于页面；
-- 最小 Tauri capability，尚未授予 sidecar、网络或文件系统 wildcard 权限。
-
-真实搜索、WebTorrent 下载和 sidecar IPC 会在后续 Phase 接入。
+- YTS、Nyaa 以及默认关闭的 Knaben Beta 聚合搜索；
+- Magnet 直接添加、实时下载进度及暂停、继续、移除控制；
+- 随应用打包的 Node runtime、鉴权本机 IPC 与最小 Tauri capability。
 
 ## 开发环境
 
@@ -52,4 +51,3 @@ npm run dev
 ## License
 
 本项目代码采用 MIT License。上游与第三方归属见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
-

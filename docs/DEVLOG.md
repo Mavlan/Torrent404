@@ -35,7 +35,7 @@
 - 创建 `packages/protocol`：稳定 DTO、commands/events、Zod runtime schemas 与协议版本。
 - 创建 `packages/core`：无网络、无 Torrent 副作用的 Phase 1 runtime seam。
 - 创建 `packages/i18n`：中文默认消息与 typed keys。
-- 创建 Tauri 2 + React 19 桌面 shell，产品名“涌流”，包含五个主要页面、主题选择、空状态和隐私/上游说明。
+- 创建 Tauri 2 + React 19 桌面 shell，产品名“涌流404”，包含五个主要页面、主题选择、空状态和隐私/上游说明。
 - 将 Tauri capability 收紧为 `core:default`，未启用 shell/opener/filesystem/network 插件。
 - 添加 Windows CI 与项目治理文件。
 
@@ -195,7 +195,7 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 - 首次 Tauri production build 已生成 release binary 与 NSIS，但 WiX MSI 因默认
   code page 1252 无法编码中文产品元数据而报 `LGHT0311`。
 - 将 WiX installer locale 显式设为 `zh-CN`，并新增配置回归测试；随后同一次
-  Tauri build 成功生成 NSIS 与 `涌流_0.1.0_x64_zh-CN.msi`。
+  Tauri build 成功生成 NSIS 与 `涌流404_0.1.0_x64_zh-CN.msi`。
 - 新增 YTS JSON + Nyaa RSS 双 adapter 本地集成测试，确认二者可同时通过
   `ProviderRegistry` 与 `SearchAggregator` 流式输出规范结果。
 
@@ -649,3 +649,31 @@ Windows production bundle 与 sidecar：
   均有合法 40-hex hash 与 magnet；恢复默认关闭后仍为 0，最终网络请求总数 1。未下载任何结果。
 - 未运行 production bundle、full audit、完整 torrent smoke 或 Phase Final Acceptance。v0.1 Search
   Sources 在 YTS + Nyaa + 默认关闭的 Knaben Beta 组合上冻结。
+
+## 2026-08-29 — Phase 4.6 v0.1 Release Polish
+
+完成：
+
+- 将用户可见产品标识统一为“涌流404”与 `0.1.0`：侧栏从旧开发阶段号改为 RC，About 明示版本；
+  Tauri 窗口、bundle metadata 保持一致，并把首发 Windows identifier 固定为
+  `io.github.yongliu404.desktop`。Cargo author、项目 LICENSE、Rust 启动错误和 provider User-Agent
+  不再使用临时产品名；npm workspace/module namespace保持不变，避免无意义重命名。
+- Settings 下载目录继续显示 sidecar 返回的真实保存路径；移除尚未实现且只弹出“后续阶段”提示的
+  “更改”按钮，避免公开版本出现无效控件。未新增文件选择器、权限或高级设置。
+- About 保留独立项目/TorLink 无隶属关系、TorLink MIT 致谢、WebTorrent MIT 致谢，以及
+  BitTorrent peers 可见公网 IP、不提供 Tor/VPN/匿名隐藏能力的中英文边界说明。
+- `THIRD_PARTY_NOTICES.md` 补入 `webtorrent@3.0.21` 与项目内最小修补
+  `bittorrent-tracker` 适用的 WebTorrent MIT copyright/license；README 仅修正产品名与已过时的
+  Phase 1 状态，没有进行 Release 页面重写。
+- 定向扫描确认发布界面与元数据中不再存在历史产品标识或开发阶段标签；TorLink 仅保留于上游说明、
+  贡献边界和第三方 attribution。
+
+局部验证：
+
+- Desktop App/Tauri metadata：18 PASS；i18n：2 PASS；YTS/Nyaa/Knaben adapter：9 PASS。
+- Protocol/Core/i18n/Desktop typecheck、`cargo fmt --check`、`cargo check --locked`、
+  `git diff --check`：PASS。
+- 短 `tauri dev` smoke 检查 Search、Settings、Downloads、About 与 zh-CN/en-US 即时切换；分类来源、
+  Games/Software“暂无”、Knaben Beta、下载空状态、About 版本/隐私/致谢均可读且无明显溢出。
+  关闭窗口后 `torlink-desktop.exe` 与 Node sidecar 进程数均为 0。
+- 按范围未运行 production bundle、完整 audit 或大型 torrent smoke；这些保留给最终 Acceptance Gate。

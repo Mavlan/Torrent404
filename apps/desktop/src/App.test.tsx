@@ -42,6 +42,7 @@ describe("desktop shell", () => {
   it("renders human-readable category counts from provider descriptors", async () => {
     render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
     expect(screen.getByText("涌流404")).toBeInTheDocument();
+    expect(screen.getByText("v0.1.0 · RC")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /从一个入口/ })).toBeInTheDocument();
     expect(screen.getByText("搜索电影、剧集、动漫、游戏和其他 Torrent 资源")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("输入关键词、Magnet 或 infohash")).toBeInTheDocument();
@@ -146,6 +147,8 @@ describe("desktop shell", () => {
     expect(screen.getByRole("heading", { name: "关于涌流404" })).toBeInTheDocument();
     expect(screen.getByText(/peers 可以看到你的公网 IP/)).toBeInTheDocument();
     expect(screen.getByText(/并非 TorLink 官方版本/)).toBeInTheDocument();
+    expect(screen.getByText("0.1.0")).toBeInTheDocument();
+    expect(screen.getByText("WebTorrent")).toBeInTheDocument();
   });
 
   it("switches the complete shell to English without restarting", async () => {

@@ -2,7 +2,7 @@
 
 ## TorLink
 
-TorLink is an upstream reference and planned source of selected reusable modules.
+TorLink is an upstream reference and the source of selected adapted provider logic.
 
 - Project: <https://github.com/baairon/torlink>
 - Reviewed revision: `205cabb00c348c2272e1761fbf4b46b682c0c275`
@@ -40,4 +40,35 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-Release builds must regenerate and review a complete npm/crate dependency notice before publication.
+## WebTorrent
+
+涌流404 bundles `webtorrent@3.0.21` as its Torrent engine and carries a minimally
+patched `bittorrent-tracker` dependency. Both are provided under the MIT License.
+
+- Project: <https://github.com/webtorrent/webtorrent>
+- License: MIT
+- Copyright: `Copyright (c) Feross Aboukhadijeh and WebTorrent, LLC`
+
+```text
+The MIT License (MIT)
+
+Copyright (c) Feross Aboukhadijeh and WebTorrent, LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
