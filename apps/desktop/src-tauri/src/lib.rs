@@ -9,6 +9,49 @@ use tauri::{Manager, RunEvent, State};
 
 struct DownloadDirectory(PathBuf);
 
+#[cfg(target_os = "windows")]
+fn show_startup_failure(reason: &str) {
+    use std::ffi::c_void;
+    use std::iter;
+    use std::os::windows::ffi::OsStrExt;
+
+    #[link(name = "user32")]
+    extern "system" {
+        fn MessageBoxW(
+            window: *mut c_void,
+            text: *const u16,
+            caption: *const u16,
+            kind: u32,
+        ) -> i32;
+    }
+
+    let message =
+        format!("涌流404 启动失败。请重新安装应用；如果问题持续存在，请提交错误报告。\n\n{reason}");
+    let message: Vec<u16> = std::ffi::OsStr::new(&message)
+        .encode_wide()
+        .chain(iter::once(0))
+        .collect();
+    let caption: Vec<u16> = std::ffi::OsStr::new("涌流404 — 启动失败")
+        .encode_wide()
+        .chain(iter::once(0))
+        .collect();
+
+    // SAFETY: both UTF-16 buffers are NUL-terminated and remain alive for the call.
+    unsafe {
+        MessageBoxW(
+            std::ptr::null_mut(),
+            message.as_ptr(),
+            caption.as_ptr(),
+            0x0000_0010,
+        );
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn show_startup_failure(reason: &str) {
+    eprintln!("涌流404 startup failed: {reason}");
+}
+
 fn use_sidecar(
     state: State<'_, Mutex<SidecarSupervisor>>,
     operation: impl FnOnce(&SidecarSupervisor) -> Result<Value, sidecar::SidecarError>,
@@ -131,19 +174,48 @@ pub fn run() {
             download_list
         ])
         .setup(|app| {
-            let resource_dir = app.path().resource_dir()?;
-            let download_dir = app.path().download_dir()?.join("涌流404");
+            let resource_dir = match app.path().resource_dir() {
+                Ok(path) => path,
+                Err(error) => {
+                    show_startup_failure(&format!(
+                        "application resources are unavailable: {error}"
+                    ));
+                    app.handle().exit(1);
+                    return Ok(());
+                }
+            };
+            let download_dir = match app.path().download_dir() {
+                Ok(path) => path.join("涌流404"),
+                Err(error) => {
+                    show_startup_failure(&format!(
+                        "the download directory is unavailable: {error}"
+                    ));
+                    app.handle().exit(1);
+                    return Ok(());
+                }
+            };
             let mut supervisor = SidecarSupervisor::default();
-            supervisor.start(
+            if let Err(error) = supervisor.start(
                 &SidecarPaths::from_resource_dir(&resource_dir),
                 &SidecarLaunchConfig::default(),
-            )?;
+            ) {
+                show_startup_failure(&error.safe_startup_reason());
+                app.handle().exit(1);
+                return Ok(());
+            }
             app.manage(Mutex::new(supervisor));
             app.manage(DownloadDirectory(download_dir));
             Ok(())
         })
-        .build(tauri::generate_context!())
-        .expect("failed to build 涌流404");
+        .build(tauri::generate_context!());
+
+    let app = match app {
+        Ok(app) => app,
+        Err(error) => {
+            show_startup_failure(&format!("the desktop shell could not be created: {error}"));
+            return;
+        }
+    };
 
     app.run(|app_handle, event| {
         if matches!(event, RunEvent::Exit) {

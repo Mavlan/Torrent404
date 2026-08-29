@@ -1,8 +1,9 @@
-import { copyFile, mkdir } from "node:fs/promises";
+import { access, copyFile, cp, mkdir, rm } from "node:fs/promises";
 import { execFile } from "node:child_process";
+import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 const REQUIRED_NODE_VERSION = "v24.20.0";
@@ -38,6 +39,7 @@ const sidecarDirectory = path.join(
 );
 const destination = path.join(sidecarDirectory, "node.exe");
 const sidecarCoreDirectory = path.join(sidecarDirectory, "core");
+const sidecarNodeModulesDirectory = path.join(sidecarDirectory, "node_modules");
 const coreOutputDirectory = path.join(repositoryRoot, "packages", "core", "dist");
 const typescriptCompiler = path.join(
   repositoryRoot,
@@ -74,6 +76,79 @@ for (const [source, target] of [
   );
 }
 
+const npmCli = process.env.npm_execpath;
+if (!npmCli) {
+  throw new Error("npm_execpath is required to prepare sidecar dependencies");
+}
+const { stdout: productionDependencyOutput } = await promisify(execFile)(
+  process.execPath,
+  [npmCli, "ls", "--omit=dev", "--all", "--parseable", "--workspace", "@torlink/core"],
+  { cwd: repositoryRoot, windowsHide: true, maxBuffer: 1024 * 1024 },
+);
+const repositoryNodeModules = path.join(repositoryRoot, "node_modules");
+const torlinkWorkspacePrefix = path.join(repositoryNodeModules, "@torlink") + path.sep;
+const productionDependencySources = [
+  ...new Set(
+    productionDependencyOutput
+      .split(/\r?\n/u)
+      .filter(Boolean)
+      .map((entry) => path.resolve(entry))
+      .filter(
+        (entry) =>
+          entry.startsWith(repositoryNodeModules + path.sep) &&
+          !entry.startsWith(torlinkWorkspacePrefix),
+      ),
+  ),
+].sort((left, right) => left.length - right.length);
+
+if (path.dirname(sidecarNodeModulesDirectory) !== sidecarDirectory) {
+  throw new Error("Refusing to replace sidecar dependencies outside the sidecar directory");
+}
+await rm(sidecarNodeModulesDirectory, { recursive: true, force: true });
+await mkdir(sidecarNodeModulesDirectory, { recursive: true });
+
+for (const source of productionDependencySources) {
+  const relativePath = path.relative(repositoryNodeModules, source);
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    throw new Error(`Production dependency escaped node_modules: ${source}`);
+  }
+  const destinationPath = path.join(sidecarNodeModulesDirectory, relativePath);
+  await mkdir(path.dirname(destinationPath), { recursive: true });
+  await cp(source, destinationPath, {
+    recursive: true,
+    dereference: true,
+    force: true,
+  });
+}
+
+const adapterRequire = createRequire(
+  path.join(sidecarCoreDirectory, "torrent", "WebTorrentAdapter.js"),
+);
+for (const packageName of ["node-datachannel", "webtorrent"]) {
+  const resolvedPath = path.resolve(adapterRequire.resolve(packageName));
+  if (!resolvedPath.startsWith(sidecarNodeModulesDirectory + path.sep)) {
+    throw new Error(
+      `Bundled ${packageName} resolved outside sidecar/node_modules: ${resolvedPath}`,
+    );
+  }
+}
+await access(
+  path.join(sidecarNodeModulesDirectory, "bittorrent-tracker", "package.json"),
+);
+await promisify(execFile)(
+  destination,
+  [
+    "--input-type=module",
+    "--eval",
+    `await import(${JSON.stringify(
+      pathToFileURL(
+        path.join(sidecarCoreDirectory, "torrent", "WebTorrentAdapter.js"),
+      ).href,
+    )})`,
+  ],
+  { cwd: sidecarDirectory, windowsHide: true },
+);
+
 process.stdout.write(
-  `Prepared bundled Node sidecar runtime ${REQUIRED_NODE_VERSION} and Core search/torrent modules\n`,
+  `Prepared bundled Node sidecar runtime ${REQUIRED_NODE_VERSION}, Core modules, and ${productionDependencySources.length} production dependency paths\n`,
 );

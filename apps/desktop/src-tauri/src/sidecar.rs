@@ -107,6 +107,29 @@ impl fmt::Display for SidecarError {
     }
 }
 
+impl SidecarError {
+    pub(crate) fn safe_startup_reason(&self) -> String {
+        match self {
+            Self::AlreadyRunning => "the local Core process is already running".to_owned(),
+            Self::InvalidSessionToken | Self::RandomToken => {
+                "the local Core session could not be initialized".to_owned()
+            }
+            Self::Spawn(_) => "the bundled Node Core process could not be started".to_owned(),
+            Self::ReadinessFailed { exit_code, .. } => match exit_code {
+                Some(code) => format!(
+                    "the bundled Node Core process exited before it was ready (exit code {code})"
+                ),
+                None => "the bundled Node Core process exited before it was ready".to_owned(),
+            },
+            Self::ReadinessTimeout => {
+                "the bundled Node Core process did not become ready in time".to_owned()
+            }
+            Self::Ipc(_) | Self::IpcProtocol => "the local Core readiness check failed".to_owned(),
+            Self::Process(_) => "the bundled Node Core process could not be managed".to_owned(),
+        }
+    }
+}
+
 impl Error for SidecarError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
@@ -723,6 +746,19 @@ mod tests {
             supervisor.stop().expect("sidecar should stop"),
             StopOutcome::Graceful
         );
+    }
+
+    #[test]
+    fn startup_failure_summary_does_not_expose_sidecar_stderr() {
+        let error = SidecarError::ReadinessFailed {
+            exit_code: Some(1),
+            stderr: "private runtime details and session material".to_owned(),
+        };
+
+        let summary = error.safe_startup_reason();
+        assert!(summary.contains("exit code 1"));
+        assert!(!summary.contains("private runtime details"));
+        assert!(!summary.contains("session material"));
     }
 
     #[test]

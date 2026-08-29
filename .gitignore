@@ -12,6 +12,7 @@ apps/desktop/src-tauri/binaries/*.exe
 apps/desktop/src-tauri/binaries/*-pc-windows-msvc
 apps/desktop/src-tauri/sidecar/node.exe
 apps/desktop/src-tauri/sidecar/core/
+apps/desktop/src-tauri/sidecar/node_modules/
 
 # Editors and OS files
 .idea/

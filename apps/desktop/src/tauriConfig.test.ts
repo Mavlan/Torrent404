@@ -28,6 +28,7 @@ describe("Tauri Windows bundle configuration", () => {
       "sidecar/download-service.mjs": "sidecar/download-service.mjs",
       "sidecar/search-service.mjs": "sidecar/search-service.mjs",
       "sidecar/core/": "sidecar/core/",
+      "sidecar/node_modules/": "sidecar/node_modules/",
     });
   });
 });
