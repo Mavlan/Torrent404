@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="480" viewBox="0 0 1200 480" role="img" aria-labelledby="title desc">
+  <title id="title">Torrent404</title>
+  <desc id="desc">本地优先的 Windows BitTorrent 聚合搜索与下载客户端。</desc>
+  <defs>
+    <linearGradient id="lime-glow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c8f36a" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#c8f36a" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="edge-fade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c8f36a" stop-opacity=".8"/>
+      <stop offset="1" stop-color="#c8f36a" stop-opacity=".08"/>
+    </linearGradient>
+    <pattern id="grid" width="38" height="38" patternUnits="userSpaceOnUse">
+      <path d="M38 0H0V38" fill="none" stroke="#e9f0e9" stroke-opacity=".05"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="480" rx="30" fill="#07110f"/>
+  <rect x="1" y="1" width="1198" height="478" rx="29" fill="none" stroke="#e9f0e9" stroke-opacity=".15"/>
+  <rect x="650" width="550" height="480" fill="url(#grid)"/>
+  <circle cx="1035" cy="-18" r="390" fill="url(#lime-glow)"/>
+
+  <path d="M78 93h254" stroke="#c8f36a" stroke-width="4"/>
+  <path d="M78 109h174" stroke="#c8f36a" stroke-opacity=".45" stroke-width="2"/>
+  <path d="M78 382h612" stroke="url(#edge-fade)"/>
+  <circle cx="690" cy="382" r="6" fill="#c8f36a"/>
+
+  <g fill="none" stroke="#e9f0e9" stroke-opacity=".26">
+    <path d="M835 139 966 87l126 73-17 151-142 56-116-88Z"/>
+    <path d="M875 174 969 136l80 47-11 97-99 39-78-59Z"/>
+    <path d="m835 139 40 35m91-87 3 49m123 24-43 23m26 128-37-31m-105 87 6-48m-122-40 44-19"/>
+  </g>
+  <g fill="#c8f36a">
+    <circle cx="835" cy="139" r="6"/>
+    <circle cx="966" cy="87" r="6"/>
+    <circle cx="1092" cy="160" r="6"/>
+    <circle cx="1075" cy="311" r="6"/>
+    <circle cx="933" cy="367" r="6"/>
+    <circle cx="817" cy="279" r="6"/>
+  </g>
+  <g fill="#07110f" stroke="#c8f36a" stroke-width="2">
+    <circle cx="969" cy="136" r="5"/>
+    <circle cx="1049" cy="183" r="5"/>
+    <circle cx="1038" cy="280" r="5"/>
+    <circle cx="939" cy="319" r="5"/>
+    <circle cx="861" cy="260" r="5"/>
+    <circle cx="875" cy="174" r="5"/>
+  </g>
+  <path d="M924 211h27v-27m53 69h-27v27" fill="none" stroke="#c8f36a" stroke-width="5"/>
+  <path d="m951 184 53 69" stroke="#c8f36a" stroke-opacity=".55" stroke-width="2"/>
+
+  <g font-family="Inter, Microsoft YaHei UI, Microsoft YaHei, PingFang SC, Segoe UI, sans-serif">
+    <text x="78" y="86" fill="#c8f36a" font-size="19" font-weight="700" letter-spacing="4">本地优先 / BT 桌面客户端</text>
+    <text x="72" y="246" fill="#e9f0e9" font-size="92" font-weight="850" letter-spacing="-5">TORRENT</text>
+    <text x="522" y="246" fill="#c8f36a" font-size="92" font-weight="850" letter-spacing="-5">404</text>
+    <text x="80" y="311" fill="#93a19a" font-size="27" font-weight="500">聚合检索，下载留在本机。</text>
+    <text x="80" y="365" fill="#e9f0e9" font-size="17" font-weight="650" letter-spacing="2">WINDOWS X64  ·  多源搜索  ·  默认不做种</text>
+    <text x="858" y="421" fill="#e9f0e9" font-size="16" font-weight="650" letter-spacing="3">TRY404 / DESKTOP</text>
+  </g>
+</svg>

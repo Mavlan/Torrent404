@@ -950,7 +950,16 @@ if (active) {
               <div className="page-heading"><p className="section-kicker">{t("about.kicker")}</p><h1>{t("about.title")}</h1><span>{t("about.subtitle")}</span></div>
               <div className="about-grid">
                 <section className="about-lead"><span className="about-number">404</span><h2>{t("about.privacyTitle")}</h2><p>{t("about.privacyBody")}</p></section>
-                <section className="about-card"><p className="section-kicker">{t("about.creditsKicker")}</p><h2>{t("about.creditsTitle")}</h2><p>{t("about.creditsBody")}</p><div className="license-row"><span>{t("about.versionLabel")}</span><b>0.1.0</b></div><div className="license-row"><span>TorLink</span><b>MIT</b></div><div className="license-row"><span>WebTorrent</span><b>MIT</b></div></section>
+                <section className="about-card">
+                  <p className="section-kicker">{t("about.creditsKicker")}</p>
+                  <h2>{t("about.creditsTitle")}</h2>
+                  <p>{t("about.creditsBody")}</p>
+                  <div className="license-row"><span>{t("about.upstreamAuthorLabel")}</span><b>{t("about.upstreamAuthorValue")}</b></div>
+                  <div className="license-row"><span>{t("about.upstreamLabel")}</span><b>{t("about.upstreamValue")}</b></div>
+                  <div className="license-row"><span>{t("about.upstreamLicenseLabel")}</span><b>{t("about.upstreamLicenseValue")}</b></div>
+                  <div className="license-row"><span>{t("about.versionLabel")}</span><b>0.1.0</b></div>
+                  <div className="license-row"><span>WebTorrent</span><b>MIT</b></div>
+                </section>
               </div>
             </>
           ) : null}

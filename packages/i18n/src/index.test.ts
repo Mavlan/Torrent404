@@ -14,5 +14,7 @@ describe("localized messages", () => {
     expect(translate("en-US", "search.purpose")).toBe(
       "Search movies, TV, anime, games and other torrents",
     );
+    expect(translate("en-US", "about.upstreamAuthorValue")).toBe("bairon / bairon.dev");
+    expect(translate("zh-CN", "about.upstreamLicenseValue")).toBe("MIT License");
   });
 });

@@ -317,7 +317,11 @@ it("marks startup-restored paused tasks as pending verification until resume", a
     await user.click(screen.getByRole("button", { name: "关于" }));
     expect(screen.getByRole("heading", { name: "关于 Torrent404" })).toBeInTheDocument();
     expect(screen.getByText(/peers 可以看到你的公网 IP/)).toBeInTheDocument();
+    expect(screen.getByText(/使用并修改了开源 TorLink 项目的部分代码/)).toBeInTheDocument();
     expect(screen.getByText(/并非 TorLink 官方版本/)).toBeInTheDocument();
+    expect(screen.getByText("bairon / bairon.dev")).toBeInTheDocument();
+    expect(screen.getByText("https://github.com/baairon/torlink")).toBeInTheDocument();
+    expect(screen.getByText("MIT License")).toBeInTheDocument();
     expect(screen.getByText("0.1.0")).toBeInTheDocument();
     expect(screen.getByText("WebTorrent")).toBeInTheDocument();
   });
@@ -335,6 +339,10 @@ it("marks startup-restored paused tasks as pending verification until resume", a
     })).toBeChecked();
     expect(document.documentElement.lang).toBe("en-US");
     expect(document.title).toBe("Torrent404");
+    await user.click(screen.getByRole("button", { name: "About" }));
+    expect(screen.getByText(/incorporates and modifies portions/)).toBeInTheDocument();
+    expect(screen.getByText(/independent downstream project/)).toBeInTheDocument();
+    expect(screen.getByText("TorLink author")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Search" }));
     expect(screen.getByText("Search movies, TV, anime, games and other torrents")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Movies/ })).toBeInTheDocument();

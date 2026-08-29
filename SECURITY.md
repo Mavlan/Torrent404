@@ -1,19 +1,50 @@
 # Security Policy
 
-## Reporting
+## Supported versions
 
-请不要在公开 issue 中披露可利用的安全问题。提交报告时请包含受影响版本、复现条件、影响范围和建议缓解措施；维护者确认安全联系渠道后再交换完整 PoC。
+| Version | Security updates |
+| --- | --- |
+| 0.1.x | Supported |
+| Earlier development snapshots | Not supported |
 
-## v0.1.0 安全边界
+## Reporting a vulnerability
 
-- sidecar 只能绑定 `127.0.0.1`，且每次应用启动生成新的高熵 session token。
-- token 不写入日志、错误正文或持久化文件。
-- 不提供远程 `/control`、远程文件服务器或无鉴权控制面。
-- `.torrent` 仅作为 metadata 解析，不执行其携带的程序。
-- 文件访问仅限默认下载目录或用户通过原生选择器/拖拽明确授权的路径。
-- 删除任务默认不删除数据；删除磁盘文件必须二次确认。
+Do not disclose an exploitable vulnerability, token, private path, or proof of
+concept in a public issue.
 
-## 不属于安全承诺的事项
+Use GitHub's private vulnerability reporting for this repository when it is
+available. If it is not available, open a public issue containing no sensitive
+details and ask the maintainers for a private contact channel. Include the affected
+version, prerequisites, impact, and a minimal reproduction only through that private
+channel.
 
-BitTorrent 不提供匿名性，peers 可以看到公网 IP。项目不提供 Tor、VPN、代理绕过或规避网络安全机制的功能。
+Torrent404 is currently maintained as a small open-source project, so it does not
+promise a fixed response SLA. Reports will be triaged and acknowledged as capacity
+allows.
 
+## v0.1 security boundary
+
+- The Node sidecar binds only to `127.0.0.1` on a random port.
+- Every launch creates a new high-entropy session token. The token is not persisted,
+  included in user-facing errors, or intentionally logged.
+- Authenticated IPC is versioned; malformed requests, invalid tokens, incompatible
+  protocol versions, and unknown commands are rejected with structured errors.
+- Tauri owns sidecar startup and shutdown. Release bundles contain the pinned Node
+  runtime and sidecar production dependency closure.
+- Search, tracker, DHT, and peer traffic leave the user's machine directly. The
+  project does not operate a remote control plane, search proxy, or file server.
+- Download writes use the task's saved path. New default paths are selected with the
+  native directory picker and validated when a task is created.
+- Completed tasks are offline by default. Seeding starts only after an explicit user
+  action, and stopping seeding detaches torrent network activity.
+- Removing a task retains downloaded files.
+
+## What this policy does not promise
+
+Torrent404 is local-first, but BitTorrent is not anonymous. Peers and trackers may
+observe the user's public IP address. Torrent404 does not provide Tor, VPN, proxy
+bypass, IP masking, or anonymity features, and it does not bypass login, CAPTCHA,
+paywall, DRM, or other access controls.
+
+Users remain responsible for securing their device, verifying release artifacts,
+and complying with applicable law.

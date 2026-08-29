@@ -276,7 +276,7 @@ nav { position: relative; z-index: 1; display: grid; gap: 4px; }
 .about-card h2 { margin-top: 13px; }
 .license-row { display: flex; justify-content: space-between; margin-top: auto; padding: 15px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: var(--type-caption); line-height: 1.4; }
 .license-row + .license-row { margin-top: 0; }
-.license-row b { color: var(--signal); font: 600 var(--type-caption)/1.2 "Bahnschrift", sans-serif; letter-spacing: .1em; }
+.license-row b { max-width: 72%; color: var(--signal); font: 600 var(--type-caption)/1.35 "Bahnschrift", sans-serif; letter-spacing: .06em; overflow-wrap: anywhere; text-align: right; }
 
 .toast { position: fixed; z-index: 10; left: calc(50% + 119px); bottom: 25px; max-width: min(560px, calc(100vw - 300px)); padding: 11px 16px; border: 1px solid var(--line-strong); background: color-mix(in srgb, var(--surface-2) 94%, transparent); box-shadow: 0 15px 45px var(--shadow); color: var(--ink); font-size: var(--type-support); line-height: var(--leading-support); opacity: 0; transform: translate(-50%, 8px); pointer-events: none; transition: opacity .2s ease, transform .2s ease; }
 .toast.visible { opacity: 1; transform: translate(-50%, 0); }
