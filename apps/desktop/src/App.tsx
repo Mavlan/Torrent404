@@ -186,6 +186,8 @@ function App({
   const [providersLoaded, setProvidersLoaded] = useState(false);
   const [searchState, setSearchState] = useState<"idle" | "searching" | "complete" | "error">("idle");
   const [downloadTasks, setDownloadTasks] = useState<DownloadTask[]>([]);
+  const [verificationPendingTaskIds, setVerificationPendingTaskIds] =
+  useState<Set<string>>(new Set());
   const [addingMagnet, setAddingMagnet] = useState(false);
   const [addingResultIds, setAddingResultIds] = useState<Set<string>>(new Set());
   const [controllingTaskIds, setControllingTaskIds] = useState<Set<string>>(new Set());
@@ -257,7 +259,17 @@ function App({
   const hydrateTasks = async () => {
     try {
       const response = await downloadClient.list();
-      if (active) setDownloadTasks(response.tasks);
+
+if (active) {
+  setDownloadTasks(response.tasks);
+  setVerificationPendingTaskIds(
+    new Set(
+      response.tasks
+        .filter((task) => task.status === "paused")
+        .map((task) => task.id),
+    ),
+  );
+}
     } catch {
       // Keep the initial empty snapshot if local IPC is temporarily unavailable.
     }
@@ -277,7 +289,36 @@ function App({
     const poll = async () => {
       try {
         const response = await downloadClient.list();
-        if (active) setDownloadTasks(response.tasks);
+
+if (active) {
+  setDownloadTasks(response.tasks);
+
+  setVerificationPendingTaskIds((current) => {
+    if (current.size === 0) return current;
+
+    const tasksById = new Map(
+      response.tasks.map((task) => [task.id, task]),
+    );
+    const next = new Set(current);
+
+    for (const id of current) {
+      const task = tasksById.get(id);
+
+      if (
+        !task ||
+        task.status === "completed" ||
+        task.status === "seeding" ||
+        task.status === "error" ||
+        task.progress > 0 ||
+        task.downloaded > 0
+      ) {
+        next.delete(id);
+      }
+    }
+
+    return next.size === current.size ? current : next;
+  });
+}
       } catch {
         // Keep the last known task snapshot during a transient local IPC failure.
       } finally {
@@ -476,6 +517,13 @@ function App({
       }
       if (response.command === "download.remove") {
         setDownloadTasks((current) => current.filter((item) => item.id !== task.id));
+        setVerificationPendingTaskIds((current) => {
+          if (!current.has(task.id)) return current;
+
+          const next = new Set(current);
+          next.delete(task.id);
+          return next;
+        });
         setNotice("download.removed");
       } else {
         setDownloadTasks((current) => current.map((item) => (
@@ -748,10 +796,10 @@ function App({
                     <article className="download-task" key={task.id}>
                       <div className="task-summary">
                         <span>{taskStatusLabel(task, t)}</span><h2>{task.name}</h2>
-                        <div className="task-progress-heading"><small>{t("downloads.progress")}</small><strong>{progressPercent(task.progress)}</strong></div>
+                        <div className="task-progress-heading"><small>{t("downloads.progress")}</small><strong>{verificationPendingTaskIds.has(task.id) ? t("downloads.pendingVerification") : progressPercent(task.progress)}</strong></div>
                         <div aria-label={t("downloads.progress")} aria-valuemax={100} aria-valuemin={0} aria-valuenow={Math.round(task.progress * 100)} className="task-progress" role="progressbar"><i style={{ width: progressPercent(task.progress) }} /></div>
                         <dl className="task-stats">
-                          <div><dt>{t("downloads.transferred")}</dt><dd>{formatBytes(task.downloaded)} / {task.total > 0 ? formatBytes(task.total) : t("downloads.unknownTotal")}</dd></div>
+                          <div><dt>{t("downloads.transferred")}</dt><dd>{verificationPendingTaskIds.has(task.id) ? t("downloads.pendingVerification") : `${formatBytes(task.downloaded)} / ${task.total > 0 ? formatBytes(task.total) : t("downloads.unknownTotal")}`}</dd></div>
                           <div><dt>{t("downloads.downloadSpeed")}</dt><dd>{formatBytes(task.status === "paused" ? 0 : task.downloadSpeed)}/s</dd></div>
                           <div><dt>{t("downloads.uploadSpeed")}</dt><dd>{formatBytes(task.status === "paused" ? 0 : task.uploadSpeed)}/s</dd></div>
                           <div><dt>{t("downloads.eta")}</dt><dd>{task.status === "paused" ? "—" : formatEta(task.etaSeconds)}</dd></div>

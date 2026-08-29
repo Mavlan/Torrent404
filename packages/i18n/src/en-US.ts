@@ -85,6 +85,7 @@ export const enUS = {
   "downloads.eta": "ETA",
   "downloads.peers": "Peers",
   "downloads.unknownTotal": "Unknown",
+  "downloads.pendingVerification": "Pending verification",
   "downloads.taskError": "The download encountered an error. Try again later or remove the task.",
   "downloads.pause": "Pause",
   "downloads.resume": "Resume",

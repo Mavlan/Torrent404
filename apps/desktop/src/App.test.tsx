@@ -114,6 +114,60 @@ describe("desktop shell", () => {
 
   expect(downloads.list).toHaveBeenCalled();
 });
+it("marks startup-restored paused tasks as pending verification until resume", async () => {
+  let snapshot: DownloadTask = {
+    id: "download-restored-paused",
+    infoHash: "abcdef0123456789abcdef0123456789abcdef03",
+    name: "Restored paused fixture",
+    status: "paused",
+    progress: 0,
+    downloadSpeed: 0,
+    uploadSpeed: 0,
+    downloaded: 0,
+    total: 1_048_576,
+    peers: 0,
+    savePath: "C:\\Downloads\\Torrent404",
+  };
+
+  const downloads: DownloadClient = {
+    ...shellDownloadClient(),
+    list: vi.fn().mockImplementation(async () => ({ tasks: [{ ...snapshot }] })),
+    resume: vi.fn().mockImplementation(async () => {
+      snapshot = {
+        ...snapshot,
+        status: "downloading",
+        progress: 0.5,
+        downloaded: 524_288,
+        downloadSpeed: 131_072,
+        peers: 3,
+      };
+
+      return {
+        ok: true as const,
+        protocolVersion: 1 as const,
+        command: "download.resume" as const,
+        result: { taskId: snapshot.id, task: { ...snapshot } },
+      };
+    }),
+  };
+
+  const user = userEvent.setup();
+
+  render(<App searchClient={shellClient()} downloadClient={downloads} />);
+
+  await waitFor(() => expect(downloads.list).toHaveBeenCalled());
+  await user.click(screen.getByRole("button", { name: /下载中/ }));
+
+  expect(await screen.findAllByText("待校验")).toHaveLength(2);
+  expect(screen.queryByText("0.0%")).not.toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "继续" }));
+
+  expect(downloads.resume).toHaveBeenCalledWith("download-restored-paused");
+  expect(await screen.findByText("50.0%")).toBeInTheDocument();
+  expect(screen.getByText("512 KiB / 1.0 MiB")).toBeInTheDocument();
+  expect(screen.queryByText("待校验")).not.toBeInTheDocument();
+});
 
   it("polls live task snapshots and refreshes them when re-entering Downloads", async () => {
     let snapshot: DownloadTask = {

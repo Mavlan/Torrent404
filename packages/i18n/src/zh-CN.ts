@@ -83,6 +83,7 @@ export const zhCN = {
   "downloads.eta": "剩余时间",
   "downloads.peers": "Peers",
   "downloads.unknownTotal": "未知",
+  "downloads.pendingVerification": "待校验",
   "downloads.taskError": "下载遇到错误，请稍后重试或移除任务。",
   "downloads.pause": "暂停",
   "downloads.resume": "继续",
