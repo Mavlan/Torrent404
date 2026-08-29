@@ -16,7 +16,7 @@ describe("Tauri Windows bundle configuration", () => {
     expect(config.productName).toBe("Torrent404");
     expect(config.mainBinaryName).toBe("Torrent404");
     expect(config.version).toBe("0.1.0");
-    expect(config.identifier).toBe("io.github.yongliu404.desktop");
+    expect(config.identifier).toBe("com.try404.torrent404");
     expect(config.app.windows[0]?.title).toBe("Torrent404");
     expect(config.bundle.shortDescription).toContain("Torrent404");
     expect(config.bundle.targets).toContain("msi");

@@ -656,7 +656,7 @@ Windows production bundle 与 sidecar：
 
 - 将用户可见产品标识统一为“Torrent404”与 `0.1.0`：侧栏从旧开发阶段号改为 RC，About 明示版本；
   Tauri 窗口、bundle metadata 保持一致，并把首发 Windows identifier 固定为
-  `io.github.yongliu404.desktop`。Cargo author、项目 LICENSE、Rust 启动错误和 provider User-Agent
+  `com.try404.torrent404`。Cargo author、项目 LICENSE、Rust 启动错误和 provider User-Agent
   不再使用临时产品名；npm workspace/module namespace保持不变，避免无意义重命名。
 - Settings 下载目录继续显示 sidecar 返回的真实保存路径；移除尚未实现且只弹出“后续阶段”提示的
   “更改”按钮，避免公开版本出现无效控件。未新增文件选择器、权限或高级设置。
@@ -700,7 +700,7 @@ Production build 与 runtime：
 - 新生成 NSIS `Torrent404_0.1.0_x64-setup.exe` 为 25,429,650 bytes；zh-CN MSI
   `Torrent404_0.1.0_x64_zh-CN.msi` 为 37,785,600 bytes。NSIS、MSI 与 release executable 的
   ProductName/ProductVersion 均为“Torrent404”/`0.1.0`；配置 identifier 为
-  `io.github.yongliu404.desktop`。
+  `com.try404.torrent404`。
 - 将 release App 启动 PATH 限定为 `C:\Windows\System32` 后仍成功进入“本机服务准备就绪”；实际
   child executable 为 release resources 下的 `sidecar/node.exe`，版本 `v24.20.0`，不依赖系统 Node。
 
@@ -753,7 +753,7 @@ Release 文件：
 ## 2026-08-29 — v0.1 task persistence and restart resume
 
 - 新增版本化原子 JSON store：Windows 位置为
-  `%LOCALAPPDATA%\io.github.yongliu404.desktop\download-tasks.v1.json`。仅保存 task ID、原始
+  `%LOCALAPPDATA%\com.try404.torrent404\download-tasks.v1.json`。仅保存 task ID、原始
   magnet/source、infoHash、名称、下载路径、总大小、稳定状态、announce 与 base64 torrent metadata；
   不保存 speed、peers、ETA 或运行时 progress。
 - sidecar 启动时离线恢复记录：未完成任务统一为 `paused`，`completed` / `seeding` 统一恢复为

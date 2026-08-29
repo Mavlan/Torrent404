@@ -3,7 +3,7 @@
   "productName": "Torrent404",
   "mainBinaryName": "Torrent404",
   "version": "0.1.0",
-  "identifier": "io.github.yongliu404.desktop",
+  "identifier": "com.try404.torrent404",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
