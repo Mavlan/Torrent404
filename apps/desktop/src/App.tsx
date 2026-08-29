@@ -251,7 +251,7 @@ function App({
   }, [searchClient]);
 
   useEffect(() => {
-    if (page !== "downloading") return;
+    if (page !== "downloading" && page !== "completed") return;
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const poll = async () => {
@@ -429,7 +429,7 @@ function App({
 
   const controlDownload = async (
     task: DownloadTask,
-    operation: "pause" | "resume" | "remove",
+    operation: "pause" | "resume" | "startSeeding" | "stopSeeding" | "remove",
   ) => {
     if (controllingTaskIds.has(task.id)) return;
     if (operation === "remove" && !window.confirm(t("downloads.removeConfirm"))) return;
@@ -448,7 +448,15 @@ function App({
         setDownloadTasks((current) => current.map((item) => (
           item.id === task.id ? response.result.task : item
         )));
-        setNotice(operation === "pause" ? "download.paused" : "download.resumed");
+        setNotice(
+          operation === "pause"
+            ? "download.paused"
+            : operation === "resume"
+              ? "download.resumed"
+              : operation === "startSeeding"
+                ? "download.seedingStarted"
+                : "download.seedingStopped",
+        );
       }
     } catch {
       setNotice("error.downloadUnavailable");
@@ -500,8 +508,12 @@ function App({
       : searchState === "complete"
         ? t("search.noResultsBody")
         : t("search.emptyBody");
-  const activeDownloadSpeed = downloadTasks.reduce((sum, task) => sum + task.downloadSpeed, 0);
-  const connectedPeers = downloadTasks.reduce((sum, task) => sum + (task.peers ?? 0), 0);
+  const activeTasks = downloadTasks.filter((task) => !["completed", "seeding"].includes(task.status));
+  const completedTasks = downloadTasks.filter((task) => ["completed", "seeding"].includes(task.status));
+  const seedingTasks = completedTasks.filter((task) => task.status === "seeding");
+  const activeDownloadSpeed = activeTasks.reduce((sum, task) => sum + task.downloadSpeed, 0);
+  const connectedPeers = activeTasks.reduce((sum, task) => sum + (task.peers ?? 0), 0);
+  const completedSize = completedTasks.reduce((sum, task) => sum + task.total, 0);
 
   return (
     <div className="app-shell" data-theme={theme} lang={locale}>
@@ -523,7 +535,13 @@ function App({
             >
               <Icon name={item.icon} />
               <span>{t(item.labelKey)}</span>
-              {item.count !== undefined ? <b>{String(item.id === "downloading" ? downloadTasks.length : item.count).padStart(2, "0")}</b> : null}
+              {item.count !== undefined ? <b>{String(
+                item.id === "downloading"
+                  ? activeTasks.length
+                  : item.id === "completed"
+                    ? completedTasks.length
+                    : item.count,
+              ).padStart(2, "0")}</b> : null}
             </button>
           ))}
         </nav>
@@ -588,6 +606,7 @@ function App({
                   <span aria-hidden="true">↗</span>
                 </button>
               </form>
+              <p className="magnet-hint">{t("search.magnetHint")}</p>
 
               <section className="source-panel" aria-label={t("search.sourcesTitle")}>
                 <header>
@@ -656,10 +675,10 @@ function App({
           {page === "downloading" ? (
             <>
               <div className="page-heading"><p className="section-kicker">{t("downloads.kicker")}</p><h1>{t("downloads.title")}</h1><span>{t("downloads.subtitle")}</span></div>
-              <div className="metrics"><Metric label={t("downloads.metricTasks")} value={String(downloadTasks.length).padStart(2, "0")} /><Metric label={t("downloads.metricSpeed")} value={formatBytes(activeDownloadSpeed)} unit="/s" /><Metric label={t("downloads.metricPeers")} value={String(connectedPeers).padStart(2, "0")} /></div>
-              {downloadTasks.length === 0 ? <EmptyState kind="downloads" t={t} /> : (
+              <div className="metrics"><Metric label={t("downloads.metricTasks")} value={String(activeTasks.length).padStart(2, "0")} /><Metric label={t("downloads.metricSpeed")} value={formatBytes(activeDownloadSpeed)} unit="/s" /><Metric label={t("downloads.metricPeers")} value={String(connectedPeers).padStart(2, "0")} /></div>
+              {activeTasks.length === 0 ? <EmptyState kind="downloads" t={t} /> : (
                 <section className="download-task-list" aria-label={t("downloads.taskList")}>
-                  {downloadTasks.map((task) => (
+                  {activeTasks.map((task) => (
                     <article className="download-task" key={task.id}>
                       <div className="task-summary">
                         <span>{taskStatusLabel(task, t)}</span><h2>{task.name}</h2>
@@ -679,7 +698,7 @@ function App({
                         <div className="task-controls">
                           {task.status === "paused" ? (
                             <button disabled={controllingTaskIds.has(task.id)} onClick={() => void controlDownload(task, "resume")} type="button">{t("downloads.resume")}</button>
-                          ) : ["queued", "downloading", "seeding"].includes(task.status) ? (
+                          ) : ["queued", "downloading"].includes(task.status) ? (
                             <button disabled={controllingTaskIds.has(task.id)} onClick={() => void controlDownload(task, "pause")} type="button">{t("downloads.pause")}</button>
                           ) : null}
                           <button className="remove" disabled={controllingTaskIds.has(task.id)} onClick={() => void controlDownload(task, "remove")} type="button">{t("downloads.remove")}</button>
@@ -695,8 +714,36 @@ function App({
           {page === "completed" ? (
             <>
               <div className="page-heading"><p className="section-kicker">{t("completed.kicker")}</p><h1>{t("completed.title")}</h1><span>{t("completed.subtitle")}</span></div>
-              <div className="metrics"><Metric label={t("completed.metricTasks")} value="00" /><Metric label={t("completed.metricSeeding")} value="00" /><Metric label={t("completed.metricSize")} value="0" unit="B" /></div>
-              <EmptyState kind="completed" t={t} />
+              <div className="metrics"><Metric label={t("completed.metricTasks")} value={String(completedTasks.length).padStart(2, "0")} /><Metric label={t("completed.metricSeeding")} value={String(seedingTasks.length).padStart(2, "0")} /><Metric label={t("completed.metricSize")} value={formatBytes(completedSize)} /></div>
+              {completedTasks.length === 0 ? <EmptyState kind="completed" t={t} /> : (
+                <section className="download-task-list" aria-label={t("completed.title")}>
+                  {completedTasks.map((task) => (
+                    <article className="download-task" key={task.id}>
+                      <div className="task-summary">
+                        <span>{taskStatusLabel(task, t)}</span><h2>{task.name}</h2>
+                        <div className="task-progress-heading"><small>{t("downloads.progress")}</small><strong>{progressPercent(task.progress)}</strong></div>
+                        <div aria-label={t("downloads.progress")} aria-valuemax={100} aria-valuemin={0} aria-valuenow={Math.round(task.progress * 100)} className="task-progress" role="progressbar"><i style={{ width: progressPercent(task.progress) }} /></div>
+                        <dl className="task-stats">
+                          <div><dt>{t("downloads.transferred")}</dt><dd>{formatBytes(task.downloaded)} / {formatBytes(task.total)}</dd></div>
+                          <div><dt>{t("downloads.uploadSpeed")}</dt><dd>{formatBytes(task.status === "seeding" ? task.uploadSpeed : 0)}/s</dd></div>
+                          <div><dt>{t("downloads.peers")}</dt><dd>{task.status === "seeding" ? task.peers ?? 0 : 0}</dd></div>
+                        </dl>
+                      </div>
+                      <div className="task-actions">
+                        <div className="task-identity"><small>{t("downloads.taskId")}</small><code>{task.id}</code></div>
+                        <div className="task-controls">
+                          {task.status === "seeding" ? (
+                            <button disabled={controllingTaskIds.has(task.id)} onClick={() => void controlDownload(task, "stopSeeding")} type="button">{t("completed.stopSeeding")}</button>
+                          ) : (
+                            <button disabled={controllingTaskIds.has(task.id)} onClick={() => void controlDownload(task, "startSeeding")} type="button">{t("completed.startSeeding")}</button>
+                          )}
+                          <button className="remove" disabled={controllingTaskIds.has(task.id)} onClick={() => void controlDownload(task, "remove")} type="button">{t("downloads.remove")}</button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </section>
+              )}
             </>
           ) : null}
 
@@ -706,7 +753,7 @@ function App({
               <div className="settings-grid">
                 <section className="setting-panel">
                   <div className="setting-icon"><Icon name="folder" /></div>
-                  <div><p className="section-kicker">{t("settings.downloadKicker")}</p><h2>{t("settings.downloadTitle")}</h2><p>{t("settings.downloadBody")}</p><code>{downloadDirectory ?? "C:\\Users\\…\\Downloads\\涌流404"}</code></div>
+                  <div><p className="section-kicker">{t("settings.downloadKicker")}</p><h2>{t("settings.downloadTitle")}</h2><p>{t("settings.downloadBody")}</p><code>{downloadDirectory ?? "C:\\Users\\…\\Downloads\\Torrent404"}</code></div>
                 </section>
                 <section className="setting-panel source-settings-panel">
                   <div>

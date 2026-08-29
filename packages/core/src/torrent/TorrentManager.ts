@@ -49,7 +49,8 @@ function progress(value: number, fallback: number): number {
 
 export class TorrentManager {
   readonly #tasks = new Map<string, DownloadTask>();
-  readonly #resumeStatus = new Map<string, "downloading" | "seeding">();
+  readonly #requests = new Map<string, AddDownloadRequest>();
+  readonly #completing = new Set<string>();
 
   constructor(private readonly engine: TorrentEngine) {}
 
@@ -80,20 +81,11 @@ export class TorrentManager {
       throw new DuplicateTorrentError(queued.infoHash, duplicate.id);
     }
     this.#tasks.set(queued.id, queued);
+    this.#requests.set(queued.id, { ...request, id: queued.id });
     this.#setStatus(queued.id, "downloading");
 
-    const engineRequest: AddTorrentRequest = {
-      id: queued.id,
-      source: request.source,
-      path: queued.savePath,
-      onMetadata: (metadata) => this.#applyMetadata(queued.id, metadata),
-      onDone: () => this.#complete(queued.id),
-      onError: (error) => this.#fail(queued.id, error),
-      ...(request.announce ? { announce: request.announce } : {}),
-    };
-
     try {
-      await this.engine.add(engineRequest);
+      await this.engine.add(this.#engineRequest(queued.id));
     } catch (error) {
       this.#fail(queued.id, error);
     }
@@ -110,7 +102,7 @@ export class TorrentManager {
 
     const updated = this.#applySnapshot(current, snapshot);
     this.#tasks.set(id, updated);
-    if (snapshot.done) this.#complete(id);
+    if (snapshot.done) void this.#complete(id);
     return this.get(id);
   }
 
@@ -119,10 +111,6 @@ export class TorrentManager {
     if (!current || !canTransitionDownloadTask(current.status, "paused")) return false;
     if (!this.engine.pause(id)) return false;
 
-    this.#resumeStatus.set(
-      id,
-      current.status === "seeding" ? "seeding" : "downloading",
-    );
     this.#tasks.set(id, transitionDownloadTask(current, { status: "paused" }));
     return true;
   }
@@ -131,13 +119,37 @@ export class TorrentManager {
     const current = this.#tasks.get(id);
     if (!current || current.status !== "paused") return false;
 
-    const target = this.#resumeStatus.get(id)
-      ?? (current.progress >= 1 ? "seeding" : "downloading");
+    const target = "downloading";
     if (!canTransitionDownloadTask(current.status, target)) return false;
     if (!this.engine.resume(id)) return false;
 
     this.#tasks.set(id, transitionDownloadTask(current, { status: target }));
-    this.#resumeStatus.delete(id);
+    return true;
+  }
+
+  async startSeeding(id: string): Promise<boolean> {
+    const current = this.#tasks.get(id);
+    const request = this.#requests.get(id);
+    if (!current || current.status !== "completed" || !request) return false;
+
+    this.#tasks.set(id, transitionDownloadTask(current, { status: "seeding" }));
+    try {
+      await this.engine.add(this.#engineRequest(id));
+    } catch (error) {
+      this.#fail(id, error);
+      return false;
+    }
+    return this.#tasks.get(id)?.status === "seeding";
+  }
+
+  async stopSeeding(id: string): Promise<boolean> {
+    const current = this.#tasks.get(id);
+    if (!current || current.status !== "seeding") return false;
+    if (!await this.engine.remove(id, { deleteData: false })) return false;
+
+    const latest = this.#tasks.get(id);
+    if (!latest || !canTransitionDownloadTask(latest.status, "completed")) return false;
+    this.#tasks.set(id, transitionDownloadTask(latest, { status: "completed" }));
     return true;
   }
 
@@ -145,14 +157,16 @@ export class TorrentManager {
     if (!this.#tasks.has(id)) return false;
     if (!await this.engine.remove(id, options)) return false;
     this.#tasks.delete(id);
-    this.#resumeStatus.delete(id);
+    this.#requests.delete(id);
+    this.#completing.delete(id);
     return true;
   }
 
   async destroy(): Promise<void> {
     await this.engine.destroy();
     this.#tasks.clear();
-    this.#resumeStatus.clear();
+    this.#requests.clear();
+    this.#completing.clear();
   }
 
   #setStatus(id: string, status: Exclude<DownloadStatus, "error">): void {
@@ -201,14 +215,45 @@ export class TorrentManager {
       : mapped;
   }
 
-  #complete(id: string): void {
-    const current = this.#tasks.get(id);
-    if (!current) return;
+  #engineRequest(id: string): AddTorrentRequest {
+    const request = this.#requests.get(id);
+    const task = this.#tasks.get(id);
+    if (!request || !task) throw new Error(`Download task does not exist: ${id}`);
+    return {
+      id,
+      source: request.source,
+      path: task.savePath,
+      onMetadata: (metadata) => this.#applyMetadata(id, metadata),
+      onDone: () => void this.#complete(id),
+      onError: (error) => this.#fail(id, error),
+      ...(request.announce ? { announce: request.announce } : {}),
+    };
+  }
 
-    const target = current.status === "paused" ? "completed" : "seeding";
-    if (!canTransitionDownloadTask(current.status, target)) return;
-    this.#tasks.set(id, transitionDownloadTask(current, { status: target }));
-    this.#resumeStatus.delete(id);
+  async #complete(id: string): Promise<void> {
+    const current = this.#tasks.get(id);
+    if (
+      !current
+      || current.status === "completed"
+      || current.status === "seeding"
+      || this.#completing.has(id)
+    ) return;
+
+    if (!canTransitionDownloadTask(current.status, "completed")) return;
+    this.#completing.add(id);
+    try {
+      if (!await this.engine.remove(id, { deleteData: false })) {
+        this.#fail(id, new Error("Torrent engine could not stop the completed task"));
+        return;
+      }
+      const latest = this.#tasks.get(id);
+      if (!latest || !canTransitionDownloadTask(latest.status, "completed")) return;
+      this.#tasks.set(id, transitionDownloadTask(latest, { status: "completed" }));
+    } catch (error) {
+      this.#fail(id, error);
+    } finally {
+      this.#completing.delete(id);
+    }
   }
 
   #fail(id: string, error: unknown): void {
@@ -220,6 +265,6 @@ export class TorrentManager {
       status: "error",
       error: message.trim() || "Unknown torrent engine error",
     }));
-    this.#resumeStatus.delete(id);
+    this.#completing.delete(id);
   }
 }

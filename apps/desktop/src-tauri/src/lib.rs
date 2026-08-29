@@ -25,13 +25,14 @@ fn show_startup_failure(reason: &str) {
         ) -> i32;
     }
 
-    let message =
-        format!("涌流404 启动失败。请重新安装应用；如果问题持续存在，请提交错误报告。\n\n{reason}");
+    let message = format!(
+        "Torrent404 启动失败。请重新安装应用；如果问题持续存在，请提交错误报告。\n\n{reason}"
+    );
     let message: Vec<u16> = std::ffi::OsStr::new(&message)
         .encode_wide()
         .chain(iter::once(0))
         .collect();
-    let caption: Vec<u16> = std::ffi::OsStr::new("涌流404 — 启动失败")
+    let caption: Vec<u16> = std::ffi::OsStr::new("Torrent404 — 启动失败")
         .encode_wide()
         .chain(iter::once(0))
         .collect();
@@ -49,7 +50,7 @@ fn show_startup_failure(reason: &str) {
 
 #[cfg(not(target_os = "windows"))]
 fn show_startup_failure(reason: &str) {
-    eprintln!("涌流404 startup failed: {reason}");
+    eprintln!("Torrent404 startup failed: {reason}");
 }
 
 fn use_sidecar(
@@ -146,6 +147,22 @@ fn download_resume(
 }
 
 #[tauri::command]
+fn download_start_seeding(
+    task_id: String,
+    sidecar: State<'_, Mutex<SidecarSupervisor>>,
+) -> Result<Value, String> {
+    control_download("download.seed.start", task_id, sidecar)
+}
+
+#[tauri::command]
+fn download_stop_seeding(
+    task_id: String,
+    sidecar: State<'_, Mutex<SidecarSupervisor>>,
+) -> Result<Value, String> {
+    control_download("download.seed.stop", task_id, sidecar)
+}
+
+#[tauri::command]
 fn download_remove(
     task_id: String,
     sidecar: State<'_, Mutex<SidecarSupervisor>>,
@@ -170,6 +187,8 @@ pub fn run() {
             download_add,
             download_pause,
             download_resume,
+            download_start_seeding,
+            download_stop_seeding,
             download_remove,
             download_list
         ])
@@ -185,7 +204,7 @@ pub fn run() {
                 }
             };
             let download_dir = match app.path().download_dir() {
-                Ok(path) => path.join("涌流404"),
+                Ok(path) => path.join("Torrent404"),
                 Err(error) => {
                     show_startup_failure(&format!(
                         "the download directory is unavailable: {error}"

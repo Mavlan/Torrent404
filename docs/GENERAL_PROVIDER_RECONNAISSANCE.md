@@ -124,7 +124,7 @@ FOSS Torrents 官方页面说明其目标是分发自由开源项目，并公开
 - **实现/维护成本**：低。Node 原生 fetch + JSON validation 即可；来源差异和 unsafe 策略需额外测试。
 - **与 YTS/Nyaa 重复**：高。作为聚合数据库会重新带入已有电影/动漫索引和大量相同 infohash。
 - **默认内置与风险**：不适合。官方示例直接显示 The Pirate Bay proxy、1337x 等聚合来源；默认内置
-  会把涌流404与高争议商业内容索引绑定，并增加恶意软件、版权、商标和项目下架风险。即使未来做
+  会把Torrent404与高争议商业内容索引绑定，并增加恶意软件、版权、商标和项目下架风险。即使未来做
   用户显式 opt-in，也应独立法律评审，不能默认启用。
 - **证据**：[Knaben API v1](https://knaben.org/api/v1/)、
   [分类目录](https://knaben.org/browse/0/1/title)。

@@ -18,7 +18,7 @@ Phase 4 聚焦 v0.1.0 产品打磨。继续采用低额度模式：每步限制�
 5. **Phase 4.5 Knaben Search Provider**：新增单请求 JSON adapter，仅注册 Movies/TV，使用
    `defaultEnabled=false` 保持 Beta 来源默认关闭；复用现有 registry/aggregator、来源开关与持久化，
    并对 hash/magnet、分类和 HTTP/JSON/network failure 做防御性处理。（本提交完成）
-6. **Phase 4.6 v0.1 Release Polish**：统一“涌流404”/`0.1.0` 产品、窗口、安装与 About 信息，
+6. **Phase 4.6 v0.1 Release Polish**：统一“Torrent404”/`0.1.0` 产品、窗口、安装与 About 信息，
    移除下载目录的开发占位操作，补齐 WebTorrent MIT notice，并通过短 `tauri dev` 中英文 UI
    smoke 检查 Search、Settings、Downloads 与 About。（本提交完成）
 7. **Phase 4 Final Acceptance Gate — v0.1.0 Release Candidate**：全量 TypeScript/JS/Rust、两类

@@ -39,7 +39,7 @@ The audit raises the three parents to High because they can install the vulnerab
 
 ## Original five vulnerable nodes
 
-| Vulnerability package/node | Dependency path | Severity | Advisory / CVE | Affected / patched | Production and bundle | Reachability in 涌流404 threat model | Recommended fix |
+| Vulnerability package/node | Dependency path | Severity | Advisory / CVE | Affected / patched | Production and bundle | Reachability in Torrent404 threat model | Recommended fix |
 |---|---|---:|---|---|---|---|---|
 | `webtorrent@2.8.5` | direct | High (meta) | Propagated from `ip`; no independent CVE | npm range `>=0.8.0`; npm's suggested downgrade to 0.7.3 is not viable | Yes / yes | WebTorrent itself is the Torrent engine, but the underlying vulnerable function is not reached | Move to 3.0.21 and remove the vulnerable transitive edge |
 | `torrent-discovery@11.0.21` | `webtorrent → torrent-discovery` | High (meta) | Propagated from `bittorrent-tracker → ip` | npm marks all versions; no independent patch | Yes / yes | Tracker/DHT peer discovery is reachable; the affected `ip.isPublic` call is not | Keep current discovery API but supply the tested tracker fork |

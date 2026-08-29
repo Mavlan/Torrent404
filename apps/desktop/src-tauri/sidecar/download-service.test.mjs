@@ -21,6 +21,8 @@ class FakeManager {
   removed = [];
   pauseResult = true;
   resumeResult = true;
+  startSeedingResult = true;
+  stopSeedingResult = true;
   removeResult = true;
   destroyed = false;
 
@@ -63,7 +65,26 @@ class FakeManager {
     const task = this.tasks.get(id);
     this.tasks.set(id, {
       ...task,
-      status: task.progress >= 1 ? "seeding" : "downloading",
+      status: "downloading",
+    });
+    return true;
+  }
+
+  async startSeeding(id) {
+    const task = this.tasks.get(id);
+    if (!this.startSeedingResult || task?.status !== "completed") return false;
+    this.tasks.set(id, { ...task, status: "seeding" });
+    return true;
+  }
+
+  async stopSeeding(id) {
+    const task = this.tasks.get(id);
+    if (!this.stopSeedingResult || task?.status !== "seeding") return false;
+    this.tasks.set(id, {
+      ...task,
+      status: "completed",
+      uploadSpeed: 0,
+      peers: 0,
     });
     return true;
   }
@@ -104,7 +125,7 @@ test("creates a download task through the manager with the selected directory", 
     magnet: MAGNET,
     name: " Legal fixture ",
     total: 42,
-    downloadDir: "C:\\Downloads\\涌流404",
+    downloadDir: "C:\\Downloads\\Torrent404",
   });
 
   assert.equal(result.taskId, "download-test");
@@ -113,7 +134,7 @@ test("creates a download task through the manager with the selected directory", 
     id: "download-test",
     infoHash: HASH,
     name: "Legal fixture",
-    savePath: "C:\\Downloads\\涌流404",
+    savePath: "C:\\Downloads\\Torrent404",
     source: MAGNET,
     total: 42,
   });
@@ -196,6 +217,27 @@ test("pauses, resumes, and removes tasks only through the manager", async () => 
   assert.equal(manager.get("download-test"), undefined);
 });
 
+test("starts and stops seeding only through explicit manager controls", async () => {
+  const { manager, service: downloads } = service();
+  const added = await downloads.add({ magnet: MAGNET, downloadDir: "C:\\Downloads" });
+  manager.tasks.set(added.taskId, {
+    ...manager.tasks.get(added.taskId),
+    status: "completed",
+    progress: 1,
+    downloaded: 42,
+    total: 42,
+    uploadSpeed: 0,
+    peers: 0,
+  });
+
+  const seeded = await downloads.startSeeding({ taskId: added.taskId });
+  assert.equal(seeded.task.status, "seeding");
+  const stopped = await downloads.stopSeeding({ taskId: added.taskId });
+  assert.equal(stopped.task.status, "completed");
+  assert.equal(stopped.task.uploadSpeed, 0);
+  assert.equal(stopped.task.peers, 0);
+});
+
 test("returns refreshed task snapshots from the manager", async () => {
   const { manager, service: downloads } = service();
   const added = await downloads.add({ magnet: MAGNET, downloadDir: "C:\\Downloads" });
@@ -224,6 +266,10 @@ test("returns structured missing-task, invalid-transition, and engine control er
   );
 
   const added = await downloads.add({ magnet: MAGNET, downloadDir: "C:\\Downloads" });
+  await assert.rejects(
+    downloads.startSeeding({ taskId: added.taskId }),
+    (error) => error.code === "invalid_download_task_transition" && error.statusCode === 409,
+  );
   assert.throws(
     () => downloads.resume({ taskId: added.taskId }),
     (error) => error.code === "invalid_download_task_transition" && error.statusCode === 409,

@@ -424,7 +424,11 @@ impl SidecarSupervisor {
     ) -> Result<Value, SidecarError> {
         if !matches!(
             command,
-            "download.pause" | "download.resume" | "download.remove"
+            "download.pause"
+                | "download.resume"
+                | "download.seed.start"
+                | "download.seed.stop"
+                | "download.remove"
         ) {
             return Err(SidecarError::IpcProtocol);
         }
@@ -885,6 +889,13 @@ mod tests {
             .expect("invalid transition should remain a structured IPC response");
         assert_eq!(
             invalid_transition["error"]["code"],
+            "invalid_download_task_transition"
+        );
+        let invalid_seed = supervisor
+            .control_download("download.seed.start", task_id)
+            .expect("explicit seed command should return a structured IPC response");
+        assert_eq!(
+            invalid_seed["error"]["code"],
             "invalid_download_task_transition"
         );
         let paused = supervisor

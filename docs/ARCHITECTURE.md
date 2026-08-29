@@ -1,4 +1,4 @@
-# 涌流404 架构说明
+# Torrent404 架构说明
 
 状态：Phase 0 基线  
 目标版本：v0.1.0  
@@ -7,7 +7,7 @@
 
 ## 1. 架构目标
 
-涌流404 是中文优先、无中央代理服务的本地 BitTorrent 搜索与下载桌面客户端。v0.1.0 必须让未安装 Node.js、Git、Rust 或命令行工具的 Windows 用户通过 GitHub Release 安装并运行。
+Torrent404 是中文优先、无中央代理服务的本地 BitTorrent 搜索与下载桌面客户端。v0.1.0 必须让未安装 Node.js、Git、Rust 或命令行工具的 Windows 用户通过 GitHub Release 安装并运行。
 
 架构必须同时满足以下约束：
 

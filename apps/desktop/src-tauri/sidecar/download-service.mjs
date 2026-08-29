@@ -143,11 +143,19 @@ export class DownloadService {
   }
 
   pause(input) {
-    return this.#changeState(input, "pause", ["queued", "downloading", "seeding"]);
+    return this.#changeState(input, "pause", ["queued", "downloading"]);
   }
 
   resume(input) {
     return this.#changeState(input, "resume", ["paused"]);
+  }
+
+  startSeeding(input) {
+    return this.#changeStateAsync(input, "startSeeding", ["completed"]);
+  }
+
+  stopSeeding(input) {
+    return this.#changeStateAsync(input, "stopSeeding", ["seeding"]);
   }
 
   async remove(input) {
@@ -207,6 +215,44 @@ export class DownloadService {
 
     try {
       if (!this.#manager[operation](taskId)) {
+        throw new DownloadCommandError(
+          "engine_control_failed",
+          `The torrent engine could not ${operation} this task`,
+          502,
+        );
+      }
+    } catch (error) {
+      if (error instanceof DownloadCommandError) throw error;
+      throw new DownloadCommandError(
+        "engine_control_failed",
+        `The torrent engine could not ${operation} this task`,
+        502,
+      );
+    }
+
+    const updated = this.#manager.get(taskId);
+    if (!updated) {
+      throw new DownloadCommandError(
+        "engine_control_failed",
+        `The torrent engine could not ${operation} this task`,
+        502,
+      );
+    }
+    return { taskId, task: updated };
+  }
+
+  async #changeStateAsync(input, operation, allowedStatuses) {
+    const { taskId, task } = this.#existingTask(input);
+    if (!allowedStatuses.includes(task.status)) {
+      throw new DownloadCommandError(
+        "invalid_download_task_transition",
+        `Download task cannot ${operation} from its current state`,
+        409,
+      );
+    }
+
+    try {
+      if (!await this.#manager[operation](taskId)) {
         throw new DownloadCommandError(
           "engine_control_failed",
           `The torrent engine could not ${operation} this task`,

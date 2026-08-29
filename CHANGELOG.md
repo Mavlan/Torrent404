@@ -13,7 +13,7 @@
 
 - 建立 npm workspaces monorepo，以及独立的 protocol、core、i18n 和 Tauri desktop workspace。
 - 定义并校验 v1 commands/events、搜索结果、任务、设置和来源状态契约。
-- 创建中文优先的“涌流404”桌面 shell，包含搜索、下载中、已完成、设置和关于页面及响应式导航。
+- 创建中文优先的“Torrent404”桌面 shell，包含搜索、下载中、已完成、设置和关于页面及响应式导航。
 - Tauri 使用最小 `core:default` capability，未授予 shell、网络或文件系统插件权限。
 - 添加 Windows CI、MIT/第三方 notices、安全策略与贡献指南。
 - Phase 1 typecheck、10 个单元/UI 测试、生产构建、Rust `cargo check` 和 npm audit 全绿。

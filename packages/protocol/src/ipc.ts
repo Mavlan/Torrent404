@@ -12,6 +12,8 @@ export const IPC_COMMANDS = [
   "download.add",
   "download.pause",
   "download.resume",
+  "download.seed.start",
+  "download.seed.stop",
   "download.remove",
   "download.list",
 ] as const;
@@ -79,6 +81,8 @@ export interface DownloadAddRequest extends IpcRequest {
 export type DownloadControlCommand =
   | "download.pause"
   | "download.resume"
+  | "download.seed.start"
+  | "download.seed.stop"
   | "download.remove";
 
 export interface DownloadControlRequest extends IpcRequest {
@@ -201,7 +205,11 @@ export interface DownloadAddResponse {
 export interface DownloadStateControlResponse {
   ok: true;
   protocolVersion: typeof IPC_PROTOCOL_VERSION;
-  command: "download.pause" | "download.resume";
+  command:
+    | "download.pause"
+    | "download.resume"
+    | "download.seed.start"
+    | "download.seed.stop";
   result: {
     taskId: string;
     task: DownloadTask;

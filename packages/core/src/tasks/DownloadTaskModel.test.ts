@@ -77,10 +77,10 @@ describe("DownloadTaskModel", () => {
   it("exposes the complete legal status transition table", () => {
     const allowed: Record<DownloadStatus, DownloadStatus[]> = {
       queued: ["downloading", "paused", "error"],
-      downloading: ["paused", "completed", "seeding", "error"],
-      paused: ["queued", "downloading", "completed", "seeding", "error"],
+      downloading: ["paused", "completed", "error"],
+      paused: ["queued", "downloading", "completed", "error"],
       completed: ["seeding"],
-      seeding: ["paused", "completed", "error"],
+      seeding: ["completed", "error"],
       error: ["queued"],
     };
     const statuses = Object.keys(allowed) as DownloadStatus[];
@@ -136,7 +136,21 @@ describe("DownloadTaskModel", () => {
     });
     expect(paused).not.toHaveProperty("etaSeconds");
 
-    const seeded = transitionDownloadTask(task("downloading"), { status: "seeding" });
+    const completed = transitionDownloadTask(
+      { ...task("downloading"), peers: 4 },
+      { status: "completed" },
+    );
+    expect(completed).toMatchObject({
+      status: "completed",
+      progress: 1,
+      downloaded: 100,
+      total: 100,
+      downloadSpeed: 0,
+      uploadSpeed: 0,
+      peers: 0,
+    });
+
+    const seeded = transitionDownloadTask(completed, { status: "seeding" });
     expect(seeded).toMatchObject({
       status: "seeding",
       progress: 1,

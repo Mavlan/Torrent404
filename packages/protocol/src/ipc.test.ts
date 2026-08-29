@@ -16,6 +16,8 @@ describe("authenticated IPC protocol", () => {
       "download.add",
       "download.pause",
       "download.resume",
+      "download.seed.start",
+      "download.seed.stop",
       "download.remove",
       "download.list",
     ]);

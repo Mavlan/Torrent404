@@ -16,7 +16,10 @@ class FakeTorrentEngine implements TorrentEngine {
   readonly snapshots = new Map<string, TorrentSnapshot>();
   readonly pause = vi.fn((_id: string) => true);
   readonly resume = vi.fn((_id: string) => true);
-  readonly remove = vi.fn(async (_id: string, _options?: { deleteData?: boolean }) => true);
+  readonly remove = vi.fn(async (id: string, _options?: { deleteData?: boolean }) => {
+    this.snapshots.delete(id);
+    return this.requests.delete(id);
+  });
   readonly destroy = vi.fn(async () => undefined);
   addError: Error | undefined;
 
@@ -172,23 +175,38 @@ describe("TorrentManager", () => {
     expect(manager.snapshots()[0]).not.toHaveProperty("etaSeconds");
   });
 
-  it("maps completion to seeding and normalizes finished counters", async () => {
+  it("stops networking at completion and seeds only after explicit controls", async () => {
     const { engine, manager } = await addedManager();
     engine.snapshots.set("task-1", snapshot({
       done: true,
       progress: 1,
       downloaded: 100,
+      uploadSpeed: 500,
+      peers: 4,
     }));
 
-    expect(manager.refresh("task-1")).toMatchObject({
-      status: "seeding",
+    manager.refresh("task-1");
+    await vi.waitFor(() => expect(manager.get("task-1")).toMatchObject({
+      status: "completed",
       progress: 1,
       downloaded: 100,
       total: 100,
-    });
+      uploadSpeed: 0,
+      peers: 0,
+    }));
+    expect(engine.remove).toHaveBeenLastCalledWith("task-1", { deleteData: false });
 
-    engine.done("task-1");
+    await expect(manager.startSeeding("task-1")).resolves.toBe(true);
     expect(manager.get("task-1")?.status).toBe("seeding");
+    expect(engine.requests.get("task-1")?.path).toBe("C:\\Downloads");
+
+    await expect(manager.stopSeeding("task-1")).resolves.toBe(true);
+    expect(manager.get("task-1")).toMatchObject({
+      status: "completed",
+      uploadSpeed: 0,
+      peers: 0,
+    });
+    expect(engine.remove).toHaveBeenLastCalledWith("task-1", { deleteData: false });
   });
 
   it("maps callback and add failures through the error transition", async () => {
@@ -206,7 +224,7 @@ describe("TorrentManager", () => {
       .resolves.toMatchObject({ status: "error", error: "add failed" });
   });
 
-  it("pauses and resumes both downloading and seeding tasks", async () => {
+  it("pauses and resumes incomplete downloads", async () => {
     const { engine, manager } = await addedManager();
 
     expect(manager.pause("task-1")).toBe(true);
@@ -214,13 +232,8 @@ describe("TorrentManager", () => {
     expect(manager.resume("task-1")).toBe(true);
     expect(manager.get("task-1")?.status).toBe("downloading");
 
-    engine.done("task-1");
-    expect(manager.get("task-1")?.status).toBe("seeding");
-    expect(manager.pause("task-1")).toBe(true);
-    expect(manager.resume("task-1")).toBe(true);
-    expect(manager.get("task-1")?.status).toBe("seeding");
-    expect(engine.pause).toHaveBeenCalledTimes(2);
-    expect(engine.resume).toHaveBeenCalledTimes(2);
+    expect(engine.pause).toHaveBeenCalledOnce();
+    expect(engine.resume).toHaveBeenCalledOnce();
   });
 
   it("keeps task state unchanged when controls are invalid or the engine rejects them", async () => {

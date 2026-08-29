@@ -4,10 +4,10 @@ const INFO_HASH = /^[a-f\d]{40}$/i;
 
 const LEGAL_TRANSITIONS: Readonly<Record<DownloadStatus, readonly DownloadStatus[]>> = {
   queued: ["downloading", "paused", "error"],
-  downloading: ["paused", "completed", "seeding", "error"],
-  paused: ["queued", "downloading", "completed", "seeding", "error"],
+  downloading: ["paused", "completed", "error"],
+  paused: ["queued", "downloading", "completed", "error"],
   completed: ["seeding"],
-  seeding: ["paused", "completed", "error"],
+  seeding: ["completed", "error"],
   error: ["queued"],
 };
 
@@ -96,7 +96,13 @@ export function transitionDownloadTask(
 
   if (transition.status === "completed" || transition.status === "seeding") {
     const total = Math.max(task.total, task.downloaded);
-    return { ...next, progress: 1, downloaded: total, total };
+    return {
+      ...next,
+      progress: 1,
+      downloaded: total,
+      total,
+      ...(transition.status === "completed" ? { peers: 0 } : {}),
+    };
   }
 
   return next;

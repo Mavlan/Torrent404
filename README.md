@@ -1,8 +1,8 @@
-# 涌流404
+# Torrent404
 
 一个现代、中文优先的开源 BitTorrent 搜索与下载桌面客户端。当前版本为 `0.1.0` Release Candidate。
 
-> 涌流404 是独立的社区项目，不是 TorLink 官方版本。项目受 TorLink 启发，并在遵守 MIT License 的前提下复用其部分成熟思路与逻辑。
+> Torrent404 是独立的社区项目，不是 TorLink 官方版本。项目受 TorLink 启发，并在遵守 MIT License 的前提下复用其部分成熟思路与逻辑。
 
 ## 当前状态
 

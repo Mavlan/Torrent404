@@ -42,7 +42,7 @@ SOFTWARE.
 
 ## WebTorrent
 
-涌流404 bundles `webtorrent@3.0.21` as its Torrent engine and carries a minimally
+Torrent404 bundles `webtorrent@3.0.21` as its Torrent engine and carries a minimally
 patched `bittorrent-tracker` dependency. Both are provided under the MIT License.
 
 - Project: <https://github.com/webtorrent/webtorrent>

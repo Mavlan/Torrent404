@@ -35,7 +35,7 @@
 - 创建 `packages/protocol`：稳定 DTO、commands/events、Zod runtime schemas 与协议版本。
 - 创建 `packages/core`：无网络、无 Torrent 副作用的 Phase 1 runtime seam。
 - 创建 `packages/i18n`：中文默认消息与 typed keys。
-- 创建 Tauri 2 + React 19 桌面 shell，产品名“涌流404”，包含五个主要页面、主题选择、空状态和隐私/上游说明。
+- 创建 Tauri 2 + React 19 桌面 shell，产品名“Torrent404”，包含五个主要页面、主题选择、空状态和隐私/上游说明。
 - 将 Tauri capability 收紧为 `core:default`，未启用 shell/opener/filesystem/network 插件。
 - 添加 Windows CI 与项目治理文件。
 
@@ -195,7 +195,7 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 - 首次 Tauri production build 已生成 release binary 与 NSIS，但 WiX MSI 因默认
   code page 1252 无法编码中文产品元数据而报 `LGHT0311`。
 - 将 WiX installer locale 显式设为 `zh-CN`，并新增配置回归测试；随后同一次
-  Tauri build 成功生成 NSIS 与 `涌流404_0.1.0_x64_zh-CN.msi`。
+  Tauri build 成功生成 NSIS 与 `Torrent404_0.1.0_x64_zh-CN.msi`。
 - 新增 YTS JSON + Nyaa RSS 双 adapter 本地集成测试，确认二者可同时通过
   `ProviderRegistry` 与 `SearchAggregator` 流式输出规范结果。
 
@@ -322,7 +322,7 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 
 完成：
 
-- 产品显示名统一为“涌流404”，覆盖 HTML/桌面标题、Tauri `productName`、About、
+- 产品显示名统一为“Torrent404”，覆盖 HTML/桌面标题、Tauri `productName`、About、
   下载目录文案与中文 installer 描述；npm package/module namespace 保持不变。
 - 正式启用 `packages/i18n`，提供完整 `zh-CN` / `en-US` typed catalogs，默认中文；
   设置页切换语言后导航、搜索、状态、空态、下载/完成、设置、关于和普通错误立即更新。
@@ -369,7 +369,7 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 - 真实 `npm run tauri dev`：中英文六分类来源文案、TV 无来源空状态和禁用搜索、设置页
   YTS/Nyaa 来源信息及语言即时切换均正常；All 分类真实搜索由 Nyaa 返回 75 条结果，YTS
   错误被隔离，状态卡正确显示 Complete/Error。
-- 关闭窗口后 `tauri dev` exit code 0，未发现 `torlink-desktop.exe` 或 sidecar
+- 关闭窗口后 `tauri dev` exit code 0，未发现 `Torrent404.exe` 或 sidecar
   `bootstrap.mjs` 遗留进程。
 - 未新增 provider，未进入 Phase 3.4，未运行 production bundle、完整验收或 torrent smoke。
 
@@ -378,7 +378,7 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 完成：
 
 - 在 authenticated IPC v1 增加 `download.add`；接收 magnet、可选名称/大小，由 Rust
-  注入系统 Downloads 下的“涌流404”默认目录，不允许 UI 任意指定保存路径。
+  注入系统 Downloads 下的“Torrent404”默认目录，不允许 UI 任意指定保存路径。
 - sidecar 下载服务严格调用 `TorrentManager.add`；生产路径固定为
   `TorrentManager → TorrentEngine → WebTorrentAdapter → webtorrent@3.0.21`，未出现
   UI 或 IPC handler 直接操作 WebTorrent 的旁路。
@@ -514,8 +514,8 @@ Phase 2.3 以 YTS JSON 与 Nyaa RSS 两个 adapter 收口，已足够验证两�
 Windows production bundle 与 sidecar：
 
 - Tauri Windows production build PASS；生成 NSIS
-  `涌流404_0.1.0_x64-setup.exe`（25,439,442 bytes）与 zh-CN MSI
-  `涌流404_0.1.0_x64_zh-CN.msi`（37,781,504 bytes）。
+  `Torrent404_0.1.0_x64-setup.exe`（25,439,442 bytes）与 zh-CN MSI
+  `Torrent404_0.1.0_x64_zh-CN.msi`（37,781,504 bytes）。
 - 将运行环境 PATH 限定为 Windows System32 后启动 release executable，桌面仍使用 bundle 内
   `target/release/sidecar/node.exe` 启动 `bootstrap.mjs`；health 状态显示本机服务准备就绪，
   因此 Release 不依赖系统安装 Node.js。
@@ -536,7 +536,7 @@ Windows production bundle 与 sidecar：
 - 最终达到 100% / 8,388,608 bytes，状态进入 seeding，ETA=0；输出 SHA-256 为
   `8B065F520886246E8004A2968B437FABB0E51E927B763576B4FF61E4EED4FE38`。
 - remove 经过确认后从任务列表移除，默认保留下载文件；关闭桌面窗口和 tracker 后，未发现
-  `torlink-desktop.exe`、TorLink `bootstrap.mjs` sidecar 或 acceptance helper 遗留进程。
+  `Torrent404.exe`、TorLink `bootstrap.mjs` sidecar 或 acceptance helper 遗留进程。
 
 ## 2026-08-29 — Phase 4.1 Magnet Direct Add + Source Toggles
 
@@ -654,7 +654,7 @@ Windows production bundle 与 sidecar：
 
 完成：
 
-- 将用户可见产品标识统一为“涌流404”与 `0.1.0`：侧栏从旧开发阶段号改为 RC，About 明示版本；
+- 将用户可见产品标识统一为“Torrent404”与 `0.1.0`：侧栏从旧开发阶段号改为 RC，About 明示版本；
   Tauri 窗口、bundle metadata 保持一致，并把首发 Windows identifier 固定为
   `io.github.yongliu404.desktop`。Cargo author、项目 LICENSE、Rust 启动错误和 provider User-Agent
   不再使用临时产品名；npm workspace/module namespace保持不变，避免无意义重命名。
@@ -675,14 +675,14 @@ Windows production bundle 与 sidecar：
   `git diff --check`：PASS。
 - 短 `tauri dev` smoke 检查 Search、Settings、Downloads、About 与 zh-CN/en-US 即时切换；分类来源、
   Games/Software“暂无”、Knaben Beta、下载空状态、About 版本/隐私/致谢均可读且无明显溢出。
-  关闭窗口后 `torlink-desktop.exe` 与 Node sidecar 进程数均为 0。
+  关闭窗口后 `Torrent404.exe` 与 Node sidecar 进程数均为 0。
 - 按范围未运行 production bundle、完整 audit 或大型 torrent smoke；这些保留给最终 Acceptance Gate。
 
 ## 2026-08-29 — Phase 4 Final Acceptance Gate — v0.1.0 RC
 
 结论：
 
-- **涌流404 v0.1.0 Release Candidate accepted.** 本次未发现 Release blocker，没有代码修复、功能
+- **Torrent404 v0.1.0 Release Candidate accepted.** 本次未发现 Release blocker，没有代码修复、功能
   扩展、provider 变更或架构重构；仅记录最终验收结果。
 
 全量质量与安全 Gate：
@@ -697,9 +697,9 @@ Production build 与 runtime：
 
 - `npm run tauri -- build` PASS；Vite production build 109 modules，主 JS 300.97 kB，sidecar prepare
   明确使用 Node `v24.20.0`。
-- 新生成 NSIS `涌流404_0.1.0_x64-setup.exe` 为 25,429,650 bytes；zh-CN MSI
-  `涌流404_0.1.0_x64_zh-CN.msi` 为 37,785,600 bytes。NSIS、MSI 与 release executable 的
-  ProductName/ProductVersion 均为“涌流404”/`0.1.0`；配置 identifier 为
+- 新生成 NSIS `Torrent404_0.1.0_x64-setup.exe` 为 25,429,650 bytes；zh-CN MSI
+  `Torrent404_0.1.0_x64_zh-CN.msi` 为 37,785,600 bytes。NSIS、MSI 与 release executable 的
+  ProductName/ProductVersion 均为“Torrent404”/`0.1.0`；配置 identifier 为
   `io.github.yongliu404.desktop`。
 - 将 release App 启动 PATH 限定为 `C:\Windows\System32` 后仍成功进入“本机服务准备就绪”；实际
   child executable 为 release resources 下的 `sidecar/node.exe`，版本 `v24.20.0`，不依赖系统 Node。
@@ -734,6 +734,18 @@ Authenticated IPC、Search Sources 与 Magnet：
 
 Release 文件：
 
-- `LICENSE` 为涌流404 项目 MIT；`THIRD_PARTY_NOTICES.md` 保留 TorLink 固定 revision/MIT attribution，
+- `LICENSE` 为Torrent404 项目 MIT；`THIRD_PARTY_NOTICES.md` 保留 TorLink 固定 revision/MIT attribution，
   并记录 `webtorrent@3.0.21` 与 patched `bittorrent-tracker@11.2.3` 的 WebTorrent MIT notice；
   `SECURITY.md` 与当前 loopback/token、非匿名和默认保留下载数据边界一致。
+
+## 2026-08-29 — Torrent404 rename and completion policy
+
+- 将 Windows 用户可见产品名冻结为 ASCII `Torrent404`：窗口、About、安装目录、主程序、Start Menu、
+  NSIS 与 zh-CN MSI 均使用新名称；内部 workspace/package namespace 保持不变。
+- 下载完成后由 `TorrentManager` 先移除 engine torrent（保留文件），再转换为 `completed`，默认不再
+  自动做种。新增显式 `download.seed.start` / `download.seed.stop`，停止做种会真实断开 engine/network。
+- Search 页增加 Magnet 直添的中英文 placeholder 与弱提示，不改变普通关键词和 Magnet 识别路径。
+- Desktop 定向测试 24/24、sidecar 定向测试 18/18、Protocol/i18n 9/9、Rust IPC 定向测试 1/1 PASS；
+  四 workspace typecheck、`cargo fmt --check`、`cargo check --locked` 与 production bundle PASS。
+- installed sidecar Node `v24.20.0` 运行 8 MiB 本地合法 fixture：完成后等待 3 秒仍为
+  `completed` / upload 0 / peers 0；显式开始做种后进入 `seeding`，停止后 engine 解除且 SHA-256 不变。

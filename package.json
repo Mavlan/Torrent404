@@ -2,7 +2,7 @@
   "name": "torlink-desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "涌流404：中文优先的开源 BitTorrent 搜索与下载桌面客户端",
+  "description": "Torrent404：中文优先的开源 BitTorrent 搜索与下载桌面客户端",
   "type": "module",
   "workspaces": [
     "apps/*",

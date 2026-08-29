@@ -256,6 +256,26 @@ async function handleCommand(response, request) {
       return;
     }
 
+    if (request.command === "download.seed.start") {
+      sendJson(response, 200, {
+        ok: true,
+        protocolVersion: IPC_PROTOCOL_VERSION,
+        command: "download.seed.start",
+        result: await downloadService.startSeeding(request),
+      });
+      return;
+    }
+
+    if (request.command === "download.seed.stop") {
+      sendJson(response, 200, {
+        ok: true,
+        protocolVersion: IPC_PROTOCOL_VERSION,
+        command: "download.seed.stop",
+        result: await downloadService.stopSeeding(request),
+      });
+      return;
+    }
+
     if (request.command === "download.remove") {
       sendJson(response, 200, {
         ok: true,

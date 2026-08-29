@@ -157,6 +157,7 @@ nav { position: relative; z-index: 1; display: grid; gap: 4px; }
 .search-form button span { margin-left: 13px; font-size: 18px; }
 .search-form button:hover, .setting-panel > button:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(200,243,106,.18); }
 .search-form button:disabled { border-color: var(--line-strong); background: var(--line); color: var(--faint); cursor: not-allowed; box-shadow: none; transform: none; }
+.magnet-hint { margin: 8px 3px 0; color: var(--muted); font-size: 11px; letter-spacing: .02em; }
 
 .source-panel { margin-top: 14px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface-2) 82%, transparent); }
 .source-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 17px; border-bottom: 1px solid var(--line); }

@@ -1,9 +1,13 @@
 [package]
 name = "torlink-desktop"
 version = "0.1.0"
-description = "涌流404：中文优先的本地 BitTorrent 搜索与下载桌面客户端"
-authors = ["涌流404 contributors"]
+description = "Torrent404：中文优先的本地 BitTorrent 搜索与下载桌面客户端"
+authors = ["Torrent404 contributors"]
 edition = "2021"
+
+[[bin]]
+name = "Torrent404"
+path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
