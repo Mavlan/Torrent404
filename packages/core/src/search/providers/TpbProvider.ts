@@ -93,7 +93,7 @@ export class TpbProvider implements SearchProvider {
   readonly id = "tpb";
   readonly displayName = "TPB";
   readonly categories = ["movies", "tv"] as const;
-  readonly defaultEnabled = false;
+  readonly defaultEnabled = true;
 
   readonly #fetch: FetchImplementation;
   readonly #endpoint: string;

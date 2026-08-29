@@ -30,8 +30,8 @@ describe("provider preferences", () => {
 
   it("round-trips an extensible provider-ID boolean map without sensitive data", () => {
     const storage = memoryStorage();
-    expect(saveProviderPreferences({ yts: false, nyaa: true, future: false }, storage)).toBe(true);
-    expect(loadProviderPreferences(storage)).toEqual({ yts: false, nyaa: true, future: false });
+    expect(saveProviderPreferences({ yts: false, nyaa: true, tpb: false }, storage)).toBe(true);
+    expect(loadProviderPreferences(storage)).toEqual({ yts: false, nyaa: true, tpb: false });
   });
 
   it("keeps the application usable when browser storage is unavailable", () => {

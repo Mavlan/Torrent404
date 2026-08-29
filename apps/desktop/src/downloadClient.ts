@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import type {
   DownloadAddResponse,
   DownloadListResponse,
@@ -29,6 +30,7 @@ export interface DownloadClient {
   remove(taskId: string): Promise<DownloadControlResult>;
   list(): Promise<DownloadListResult>;
   directory(): Promise<string>;
+  selectDirectory(currentPath?: string): Promise<string | null>;
 }
 
 export const desktopDownloadClient: DownloadClient = {
@@ -40,4 +42,14 @@ export const desktopDownloadClient: DownloadClient = {
   remove: (taskId) => invoke("download_remove", { taskId }),
   list: () => invoke("download_list"),
   directory: () => invoke("download_directory"),
+  selectDirectory: async (currentPath) => {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: "Torrent404",
+      ...(currentPath ? { defaultPath: currentPath } : {}),
+    });
+    if (typeof selected !== "string") return null;
+    return invoke("download_directory_set", { path: selected });
+  },
 };

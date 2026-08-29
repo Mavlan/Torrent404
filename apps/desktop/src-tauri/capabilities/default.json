@@ -4,6 +4,7 @@
   "description": "Phase 1 minimum capability for the main desktop window",
   "windows": ["main"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "dialog:allow-open"
   ]
 }

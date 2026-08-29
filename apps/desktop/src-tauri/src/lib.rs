@@ -1,13 +1,12 @@
+mod download_directory;
 mod sidecar;
 
-use std::path::PathBuf;
 use std::sync::Mutex;
 
-use serde_json::Value;
+use download_directory::DownloadDirectory;
+use serde_json::{json, Value};
 use sidecar::{SidecarLaunchConfig, SidecarPaths, SidecarSupervisor};
 use tauri::{Manager, RunEvent, State};
-
-struct DownloadDirectory(PathBuf);
 
 #[cfg(target_os = "windows")]
 fn show_startup_failure(reason: &str) {
@@ -100,8 +99,20 @@ fn search_cancel(
 }
 
 #[tauri::command]
-fn download_directory(state: State<'_, DownloadDirectory>) -> String {
-    state.0.to_string_lossy().into_owned()
+fn download_directory(state: State<'_, DownloadDirectory>) -> Result<String, String> {
+    state
+        .current()
+        .map(|path| path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn download_directory_set(
+    path: String,
+    state: State<'_, DownloadDirectory>,
+) -> Result<String, String> {
+    state
+        .set(path.into())
+        .map(|path| path.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
@@ -112,11 +123,24 @@ fn download_add(
     sidecar: State<'_, Mutex<SidecarSupervisor>>,
     directory: State<'_, DownloadDirectory>,
 ) -> Result<Value, String> {
+    let download_path = match directory.path_for_new_download() {
+        Ok(path) => path,
+        Err(_) => {
+            return Ok(json!({
+                "ok": false,
+                "protocolVersion": 1,
+                "error": {
+                    "code": "download_directory_unavailable",
+                    "message": "The configured download directory is unavailable"
+                }
+            }));
+        }
+    };
     let supervisor = sidecar
         .lock()
         .map_err(|_| "sidecar supervisor is unavailable".to_owned())?;
     supervisor
-        .add_download(&magnet, name.as_deref(), total, &directory.0)
+        .add_download(&magnet, name.as_deref(), total, &download_path)
         .map_err(|error| error.to_string())
 }
 
@@ -178,12 +202,14 @@ fn download_list(sidecar: State<'_, Mutex<SidecarSupervisor>>) -> Result<Value, 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             search_providers,
             search_start,
             search_poll,
             search_cancel,
             download_directory,
+            download_directory_set,
             download_add,
             download_pause,
             download_resume,
@@ -213,8 +239,8 @@ pub fn run() {
                     return Ok(());
                 }
             };
-            let task_store_path = match app.path().app_local_data_dir() {
-                Ok(path) => path.join("download-tasks.v1.json"),
+            let app_data_dir = match app.path().app_local_data_dir() {
+                Ok(path) => path,
                 Err(error) => {
                     show_startup_failure(&format!(
                         "the local task store directory is unavailable: {error}"
@@ -223,6 +249,8 @@ pub fn run() {
                     return Ok(());
                 }
             };
+            let task_store_path = app_data_dir.join("download-tasks.v1.json");
+            let download_settings_path = app_data_dir.join("settings.v1.json");
             let mut supervisor = SidecarSupervisor::default();
             if let Err(error) = supervisor.start(
                 &SidecarPaths::from_resource_dir(&resource_dir),
@@ -236,7 +264,10 @@ pub fn run() {
                 return Ok(());
             }
             app.manage(Mutex::new(supervisor));
-            app.manage(DownloadDirectory(download_dir));
+            app.manage(DownloadDirectory::load(
+                download_dir,
+                download_settings_path,
+            ));
             Ok(())
         })
         .build(tauri::generate_context!());

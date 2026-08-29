@@ -75,7 +75,7 @@ describe("TpbProvider", () => {
     expect((fetchImpl.mock.calls[1]?.[0] as URL).searchParams.get("cat")).toBe("0");
   });
 
-  it("is discoverable but disabled until the user explicitly enables TPB", async () => {
+  it("is discoverable and enabled by default", async () => {
     const fetchImpl = fixtureFetch(await fixture("tpb-normal"));
     const provider = new TpbProvider({ fetchImpl });
     const registry = new ProviderRegistry([provider]);
@@ -85,13 +85,10 @@ describe("TpbProvider", () => {
       id: "tpb",
       displayName: "TPB",
       categories: ["movies", "tv"],
-      enabled: false,
+      enabled: true,
     }]);
-    await expect(collect(aggregator.search("test"))).resolves.toEqual([]);
-    expect(fetchImpl).not.toHaveBeenCalled();
-    await expect(collect(aggregator.search("test", {
-      providerIds: ["tpb"],
-      category: "movies",
-    }))).resolves.toHaveLength(1);
+    await expect(collect(aggregator.search("test", { category: "movies" })))
+      .resolves.toHaveLength(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });

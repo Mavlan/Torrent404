@@ -190,6 +190,7 @@ function App({
   const [addingResultIds, setAddingResultIds] = useState<Set<string>>(new Set());
   const [controllingTaskIds, setControllingTaskIds] = useState<Set<string>>(new Set());
   const [downloadDirectory, setDownloadDirectory] = useState<string | null>(null);
+  const [selectingDownloadDirectory, setSelectingDownloadDirectory] = useState(false);
   const activeSearch = useRef<{ generation: number; requestId: string | null }>({
     generation: 0,
     requestId: null,
@@ -303,15 +304,28 @@ function App({
 
   const selectCategory = (nextCategory: SearchCategory) => {
     if (nextCategory === category) return;
-    cancelCurrentSearch();
     setCategory(nextCategory);
+    const value = query.trim();
+    const nextProviders = providers.filter(
+      (provider) => provider.enabled
+        && (nextCategory === "all" || provider.categories.includes(nextCategory)),
+    );
+    if (value && !isMagnetInput(value) && providersLoaded && nextProviders.length > 0) {
+      void runSearch(value, nextCategory);
+      return;
+    }
+    cancelCurrentSearch();
     setSearchResults([]);
     setProviderStatuses({});
     setSearchState("idle");
     setNotice(null);
   };
 
-  const runSearch = async (value: string) => {
+  const runSearch = async (value: string, searchCategory = category) => {
+    const searchProviders = providers.filter(
+      (provider) => provider.enabled
+        && (searchCategory === "all" || provider.categories.includes(searchCategory)),
+    );
     const generation = activeSearch.current.generation + 1;
     const previousRequestId = activeSearch.current.requestId;
     activeSearch.current = { generation, requestId: null };
@@ -328,8 +342,8 @@ function App({
 
       const started = await searchClient.start(
         value,
-        category,
-        activeProviders.map((provider) => provider.providerId),
+        searchCategory,
+        searchProviders.map((provider) => provider.providerId),
       );
       if (activeSearch.current.generation !== generation) {
         await searchClient.cancel(started.requestId).catch(() => undefined);
@@ -484,6 +498,23 @@ function App({
     setNotice(null);
   };
 
+  const chooseDownloadDirectory = async () => {
+    if (selectingDownloadDirectory) return;
+    setSelectingDownloadDirectory(true);
+    setNotice(null);
+    try {
+      const selected = await downloadClient.selectDirectory(downloadDirectory ?? undefined);
+      if (selected) {
+        setDownloadDirectory(selected);
+        setNotice("settings.downloadUpdated");
+      }
+    } catch {
+      setNotice("error.downloadDirectoryUnavailable");
+    } finally {
+      setSelectingDownloadDirectory(false);
+    }
+  };
+
   const providerCountFor = (item: SearchCategory): number => providers.filter(
     (provider) => provider.enabled && (item === "all" || provider.categories.includes(item)),
   ).length;
@@ -610,22 +641,38 @@ function App({
 
               <section className="source-panel" aria-label={t("search.sourcesTitle")}>
                 <header>
-                  <div><h2>{t("search.sourcesTitle")}</h2><p>{t("search.sourcesHint")}</p></div>
-                  <strong>{providersLoaded ? providerCountLabel(activeProviders.length) : "…"}</strong>
+                  <h2>{t("search.sourcesTitle")}</h2>
+                  <strong>{providersLoaded
+                    ? interpolate(t("search.sourcesEnabled"), {
+                      enabled: providers.filter((provider) => provider.enabled).length,
+                      total: providers.length,
+                    })
+                    : "…"}</strong>
                 </header>
-                <div className="source-cards">
+                <div className="source-chips">
                   {!providersLoaded ? <p className="source-message">{t("search.sourcesLoading")}</p> : null}
-                  {providersLoaded && activeProviders.length === 0 ? <p className="source-message">{t("search.noProviders")}</p> : null}
-                  {activeProviders.map((provider) => {
+                  {providers.map((provider) => {
                     const status = providerStatuses[provider.providerId];
+                    const detailedCategories = provider.categories
+                      .map((item) => t(categoryLabelKeys[item]))
+                      .join(" / ");
+                    const compactCategories = provider.providerId === "knaben"
+                      ? t("search.allCategories")
+                      : detailedCategories;
+                    const state = provider.enabled ? status?.state ?? "ready" : "disabled";
                     return (
-                      <article className="source-card" data-state={status?.state ?? "ready"} key={provider.providerId}>
+                      <article
+                        className="source-chip"
+                        data-state={state}
+                        key={provider.providerId}
+                        title={`${provider.displayName} · ${detailedCategories}`}
+                      >
                         <i aria-hidden="true" />
-                        <div>
-                          <strong>{provider.displayName}</strong>
-                          <span>{provider.categories.map((item) => t(categoryLabelKeys[item])).join(" / ")}</span>
-                        </div>
-                        <em>{providerStateLabel(status?.state, t)}</em>
+                        <strong>{provider.displayName}</strong>
+                        <span>· {compactCategories}</span>
+                        <em>{provider.enabled
+                          ? providerStateLabel(status?.state, t)
+                          : t("settings.sourceDisabled")}</em>
                       </article>
                     );
                   })}
@@ -754,6 +801,11 @@ function App({
                 <section className="setting-panel">
                   <div className="setting-icon"><Icon name="folder" /></div>
                   <div><p className="section-kicker">{t("settings.downloadKicker")}</p><h2>{t("settings.downloadTitle")}</h2><p>{t("settings.downloadBody")}</p><code>{downloadDirectory ?? "C:\\Users\\…\\Downloads\\Torrent404"}</code></div>
+                  <button disabled={selectingDownloadDirectory} onClick={() => void chooseDownloadDirectory()} type="button">
+                    {t(selectingDownloadDirectory
+                      ? "settings.downloadChoosing"
+                      : "settings.downloadChoose")}
+                  </button>
                 </section>
                 <section className="setting-panel source-settings-panel">
                   <div>

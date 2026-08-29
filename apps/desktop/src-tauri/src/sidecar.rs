@@ -802,7 +802,7 @@ mod tests {
             providers["providers"][4]["categories"],
             json!(["movies", "tv"])
         );
-        assert_eq!(providers["providers"][4]["enabled"], false);
+        assert_eq!(providers["providers"][4]["enabled"], true);
         let fixture_providers = vec!["yts".to_owned(), "nyaa".to_owned()];
         let started = supervisor
             .start_search("legal fixture", "all", Some(&fixture_providers))

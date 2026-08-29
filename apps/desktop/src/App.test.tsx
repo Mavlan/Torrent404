@@ -12,7 +12,7 @@ const providerResult = {
     { providerId: "nyaa", displayName: "Nyaa", categories: ["anime"], enabled: true },
     { providerId: "knaben", displayName: "Knaben", categories: ["movies", "tv", "anime", "games", "software"], enabled: true },
     { providerId: "eztv", displayName: "EZTV", categories: ["tv"], enabled: true },
-    { providerId: "tpb", displayName: "TPB", categories: ["movies", "tv"], enabled: false },
+    { providerId: "tpb", displayName: "TPB", categories: ["movies", "tv"], enabled: true },
   ],
 } as const;
 
@@ -35,6 +35,7 @@ function shellDownloadClient(): DownloadClient {
     remove: vi.fn().mockRejectedValue(new Error("remove not expected")),
     list: vi.fn().mockResolvedValue({ tasks: [] }),
     directory: vi.fn().mockResolvedValue("C:\\Users\\Tester\\Downloads\\Torrent404"),
+    selectDirectory: vi.fn().mockResolvedValue(null),
   };
 }
 
@@ -50,20 +51,24 @@ describe("desktop shell", () => {
     expect(screen.getByRole("heading", { name: /从一个入口/ })).toBeInTheDocument();
     expect(screen.getByText("搜索电影、剧集、动漫、游戏和其他 Torrent 资源")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("搜索资源，或粘贴 Magnet 链接直接下载")).toBeInTheDocument();
-    expect(screen.getByText("无中央代理服务")).toBeInTheDocument();
+    expect(screen.getByText("Torrent404 运行正常")).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "搜索分类" })).toBeInTheDocument();
     for (const label of [
-      /全部.*4 来源/,
-      /电影.*2 来源/,
-      /剧集.*2 来源/,
+      /全部.*5 来源/,
+      /电影.*3 来源/,
+      /剧集.*3 来源/,
       /动漫.*2 来源/,
       /游戏.*1 来源/,
       /软件.*1 来源/,
     ]) {
       expect(await screen.findByRole("button", { name: label })).toBeInTheDocument();
     }
-    expect(screen.getByRole("region", { name: "搜索来源" })).toBeInTheDocument();
-    expect(screen.getAllByText("就绪")).toHaveLength(4);
+    const sources = screen.getByRole("region", { name: "搜索来源" });
+    expect(sources).toBeInTheDocument();
+    expect(screen.getByText("5/5 已启用")).toBeInTheDocument();
+    expect(sources.querySelectorAll(".source-chip")).toHaveLength(5);
+    expect(screen.getByText("· 全分类")).toBeInTheDocument();
+    expect(screen.getAllByText("就绪")).toHaveLength(5);
   });
 
   it("navigates to downloads and shows its empty state", async () => {
@@ -97,6 +102,7 @@ describe("desktop shell", () => {
       remove: vi.fn().mockRejectedValue(new Error("remove not expected")),
       list: vi.fn().mockImplementation(async () => ({ tasks: [{ ...snapshot }] })),
       directory: vi.fn().mockResolvedValue("C:\\Downloads\\Torrent404"),
+      selectDirectory: vi.fn().mockResolvedValue(null),
     };
     const user = userEvent.setup();
     render(<App searchClient={shellClient()} downloadClient={downloads} />);
@@ -185,6 +191,7 @@ describe("desktop shell", () => {
       remove: vi.fn().mockRejectedValue(new Error("remove not expected")),
       list: vi.fn().mockImplementation(async () => ({ tasks: [{ ...snapshot }] })),
       directory: vi.fn().mockResolvedValue("C:\\Downloads\\Torrent404"),
+      selectDirectory: vi.fn().mockResolvedValue(null),
     };
     const user = userEvent.setup();
     render(<App searchClient={shellClient()} downloadClient={downloads} />);
@@ -234,8 +241,8 @@ describe("desktop shell", () => {
     await user.click(screen.getByRole("button", { name: "Search" }));
     expect(screen.getByText("Search movies, TV, anime, games and other torrents")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Movies/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /TV.*2 sources/ })).toBeInTheDocument();
-    expect(screen.getAllByText("Ready")).toHaveLength(4);
+    expect(screen.getByRole("button", { name: /TV.*3 sources/ })).toBeInTheDocument();
+    expect(screen.getAllByText("Ready")).toHaveLength(5);
     const searchButtons = screen.getAllByRole("button", { name: "Search" });
     await user.click(searchButtons.at(-1)!);
     expect(screen.getByText("Enter keywords, a magnet, or an infohash first.")).toBeInTheDocument();
@@ -273,7 +280,8 @@ describe("desktop shell", () => {
     expect(screen.getByText("EZTV")).toBeInTheDocument();
     expect(screen.getByText("TPB")).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "EZTV · 已启用" })).toBeChecked();
-    expect(screen.getByRole("switch", { name: "TPB · 已停用" })).not.toBeChecked();
+    const tpbToggle = screen.getByRole("switch", { name: "TPB · 已启用" });
+    expect(tpbToggle).toBeChecked();
     const knabenToggle = screen.getByRole("switch", {
       name: "Knaben · 电影 / 剧集 / 动漫 / 游戏 / 软件 · Beta · 已启用",
     });
@@ -286,7 +294,7 @@ describe("desktop shell", () => {
 
     await user.click(screen.getByRole("button", { name: "搜索" }));
     expect(await screen.findByRole("button", { name: /动漫.*暂无/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /全部.*2 来源/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /全部.*3 来源/ })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /动漫.*暂无/ }));
     expect(searchActionButton()).toBeDisabled();
     expect(client.start).not.toHaveBeenCalled();
@@ -294,6 +302,7 @@ describe("desktop shell", () => {
     await user.click(screen.getByRole("button", { name: "设置" }));
     await user.click(screen.getByRole("switch", { name: "YTS · 已启用" }));
     await user.click(screen.getByRole("switch", { name: "EZTV · 已启用" }));
+    await user.click(screen.getByRole("switch", { name: "TPB · 已启用" }));
     await user.click(screen.getByRole("button", { name: "搜索" }));
     await user.click(screen.getByRole("button", { name: /全部.*暂无/ }));
     const input = screen.getByPlaceholderText("搜索资源，或粘贴 Magnet 链接直接下载");
@@ -305,6 +314,26 @@ describe("desktop shell", () => {
     await user.click(screen.getByRole("switch", { name: "Nyaa · 已停用" }));
     await user.click(screen.getByRole("button", { name: "搜索" }));
     expect(await screen.findByRole("button", { name: /动漫.*1 来源/ })).toBeInTheDocument();
+  });
+
+  it("selects and displays a persisted default download directory", async () => {
+    const downloads: DownloadClient = {
+      ...shellDownloadClient(),
+      selectDirectory: vi.fn().mockResolvedValue("D:\\Torrent Downloads"),
+    };
+    const user = userEvent.setup();
+    render(<App searchClient={shellClient()} downloadClient={downloads} />);
+
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    expect(await screen.findByText("C:\\Users\\Tester\\Downloads\\Torrent404"))
+      .toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "选择文件夹" }));
+
+    expect(downloads.selectDirectory).toHaveBeenCalledWith(
+      "C:\\Users\\Tester\\Downloads\\Torrent404",
+    );
+    expect(await screen.findByText("D:\\Torrent Downloads")).toBeInTheDocument();
+    expect(screen.getByText("默认下载目录已更新。")).toBeInTheDocument();
   });
 
   it("restores persisted source choices after the desktop UI remounts", async () => {
@@ -319,7 +348,7 @@ describe("desktop shell", () => {
     expect(await screen.findByRole("switch", { name: "Nyaa · 已停用" })).not.toBeChecked();
     await user.click(screen.getByRole("button", { name: "搜索" }));
     expect(await screen.findByRole("button", { name: /动漫.*1 来源/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /全部.*3 来源/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /全部.*4 来源/ })).toBeInTheDocument();
   });
 
   it("keeps Knaben on by default and prioritizes persisted disable and enable choices", async () => {
@@ -335,9 +364,9 @@ describe("desktop shell", () => {
       name: "Knaben · 电影 / 剧集 / 动漫 / 游戏 / 软件 · Beta · 已停用",
     })).not.toBeChecked();
     await user.click(screen.getByRole("button", { name: "搜索" }));
-    expect(await screen.findByRole("button", { name: /全部.*3 来源/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /电影.*1 来源/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /剧集.*1 来源/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /全部.*4 来源/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /电影.*2 来源/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /剧集.*2 来源/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /游戏.*暂无/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /软件.*暂无/ })).toBeInTheDocument();
     firstRun.unmount();
@@ -358,19 +387,23 @@ describe("desktop shell", () => {
     })).toBeChecked();
   });
 
-  it("keeps TPB off by default and persists an explicit opt-in", async () => {
+  it("keeps TPB on by default and prioritizes a persisted opt-out", async () => {
     const user = userEvent.setup();
     const firstRun = render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
     await user.click(screen.getByRole("button", { name: "设置" }));
-    const disabled = await screen.findByRole("switch", { name: "TPB · 已停用" });
-    expect(disabled).not.toBeChecked();
-    await user.click(disabled);
-    expect(screen.getByRole("switch", { name: "TPB · 已启用" })).toBeChecked();
+    const enabled = await screen.findByRole("switch", { name: "TPB · 已启用" });
+    expect(enabled).toBeChecked();
+    await user.click(enabled);
+    expect(screen.getByRole("switch", { name: "TPB · 已停用" })).not.toBeChecked();
     firstRun.unmount();
 
     render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
     await user.click(screen.getByRole("button", { name: "设置" }));
-    expect(await screen.findByRole("switch", { name: "TPB · 已启用" })).toBeChecked();
+    expect(await screen.findByRole("switch", { name: "TPB · 已停用" })).not.toBeChecked();
+    await user.click(screen.getByRole("button", { name: "搜索" }));
+    expect(await screen.findByText("4/5 已启用")).toBeInTheDocument();
+    expect(screen.getByText("TPB").closest(".source-chip"))
+      .toHaveAttribute("data-state", "disabled");
   });
 
   it("recognizes a magnet and creates a download through the existing client", async () => {
@@ -577,6 +610,7 @@ describe("desktop shell", () => {
       }),
       list: vi.fn().mockRejectedValue(new Error("poll not expected")),
       directory: vi.fn().mockResolvedValue("C:\\Users\\Tester\\Downloads\\Torrent404"),
+      selectDirectory: vi.fn().mockResolvedValue(null),
     };
     const user = userEvent.setup();
     render(<App searchClient={client} downloadClient={downloads} />);
@@ -591,7 +625,7 @@ describe("desktop shell", () => {
     expect(client.start).toHaveBeenCalledWith(
       "open media",
       "all",
-      ["yts", "nyaa", "knaben", "eztv"],
+      ["yts", "nyaa", "knaben", "eztv", "tpb"],
     );
     expect(client.poll).toHaveBeenNthCalledWith(1, requestId, 0);
     expect(client.poll).toHaveBeenNthCalledWith(2, requestId, 2);
@@ -661,6 +695,7 @@ describe("desktop shell", () => {
       remove: vi.fn().mockRejectedValue(new Error("remove not expected")),
       list: vi.fn().mockRejectedValue(new Error("poll not expected")),
       directory: vi.fn().mockResolvedValue("C:\\Downloads\\Torrent404"),
+      selectDirectory: vi.fn().mockResolvedValue(null),
     };
     const user = userEvent.setup();
     render(<App searchClient={client} downloadClient={downloads} />);
@@ -715,9 +750,54 @@ describe("desktop shell", () => {
     await waitFor(() => expect(client.start).toHaveBeenLastCalledWith(
       "second",
       "all",
-      ["yts", "nyaa", "knaben", "eztv"],
+      ["yts", "nyaa", "knaben", "eztv", "tpb"],
     ));
     finishOldPoll({ requestId: "search-old", events: [], nextCursor: 0, done: true });
+  });
+
+  it("automatically searches the newly selected category when the query is not empty", async () => {
+    const client: SearchClient = {
+      providers: vi.fn().mockResolvedValue(providerResult),
+      start: vi.fn()
+        .mockResolvedValueOnce({ requestId: "search-all" })
+        .mockResolvedValueOnce({ requestId: "search-games" }),
+      poll: vi.fn().mockImplementation(async (requestId: string) => ({
+        requestId,
+        events: [{ type: "search.complete" as const, requestId, cancelled: false }],
+        nextCursor: 1,
+        done: true,
+      })),
+      cancel: vi.fn().mockResolvedValue({ requestId: "search-all", cancelled: true }),
+    };
+    const user = userEvent.setup();
+    render(<App searchClient={client} downloadClient={shellDownloadClient()} />);
+    const input = screen.getByPlaceholderText("搜索资源，或粘贴 Magnet 链接直接下载");
+
+    await user.type(input, "grand theft auto");
+    await user.click(searchActionButton());
+    await waitFor(() => expect(client.start).toHaveBeenCalledTimes(1));
+    await user.click(screen.getByRole("button", { name: /游戏.*1 来源/ }));
+
+    await waitFor(() => expect(client.start).toHaveBeenCalledTimes(2));
+    expect(client.start).toHaveBeenNthCalledWith(
+      2,
+      "grand theft auto",
+      "games",
+      ["knaben"],
+    );
+    expect(input).toHaveValue("grand theft auto");
+  });
+
+  it("switches category without searching when the query is empty", async () => {
+    const client = shellClient();
+    const user = userEvent.setup();
+    render(<App searchClient={client} downloadClient={shellDownloadClient()} />);
+
+    const games = await screen.findByRole("button", { name: /游戏.*1 来源/ });
+    await user.click(games);
+
+    expect(games).toHaveAttribute("aria-pressed", "true");
+    expect(client.start).not.toHaveBeenCalled();
   });
 
   it("passes the selected category to authenticated search IPC", async () => {
@@ -743,9 +823,9 @@ describe("desktop shell", () => {
     await waitFor(() => expect(client.start).toHaveBeenCalledWith(
       "legal movie",
       "movies",
-      ["yts", "knaben"],
+      ["yts", "knaben", "tpb"],
     ));
     expect(screen.getByText("YTS")).toBeInTheDocument();
-    expect(screen.queryByText("Nyaa")).not.toBeInTheDocument();
+    expect(screen.getByText("Nyaa")).toBeInTheDocument();
   });
 });
