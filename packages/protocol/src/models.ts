@@ -31,6 +31,7 @@ export interface SearchResult {
   sizeBytes?: number;
   seeders?: number;
   leechers?: number;
+  added?: number;
   magnet?: string;
   torrentUrl?: string;
 }

@@ -10,7 +10,9 @@ const providerResult = {
   providers: [
     { providerId: "yts", displayName: "YTS", categories: ["movies"], enabled: true },
     { providerId: "nyaa", displayName: "Nyaa", categories: ["anime"], enabled: true },
-    { providerId: "knaben", displayName: "Knaben", categories: ["movies", "tv"], enabled: false },
+    { providerId: "knaben", displayName: "Knaben", categories: ["movies", "tv", "anime", "games", "software"], enabled: false },
+    { providerId: "eztv", displayName: "EZTV", categories: ["tv"], enabled: true },
+    { providerId: "tpb", displayName: "TPB", categories: ["movies", "tv"], enabled: false },
   ],
 } as const;
 
@@ -51,9 +53,9 @@ describe("desktop shell", () => {
     expect(screen.getByText("无中央代理服务")).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "搜索分类" })).toBeInTheDocument();
     for (const label of [
-      /全部.*2 来源/,
+      /全部.*3 来源/,
       /电影.*1 来源/,
-      /剧集.*暂无/,
+      /剧集.*1 来源/,
       /动漫.*1 来源/,
       /游戏.*暂无/,
       /软件.*暂无/,
@@ -61,7 +63,7 @@ describe("desktop shell", () => {
       expect(await screen.findByRole("button", { name: label })).toBeInTheDocument();
     }
     expect(screen.getByRole("region", { name: "搜索来源" })).toBeInTheDocument();
-    expect(screen.getAllByText("就绪")).toHaveLength(2);
+    expect(screen.getAllByText("就绪")).toHaveLength(3);
   });
 
   it("navigates to downloads and shows its empty state", async () => {
@@ -225,15 +227,15 @@ describe("desktop shell", () => {
 
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
     expect(screen.getByRole("switch", {
-      name: "Knaben · Movies & TV · Beta · Disabled",
+      name: "Knaben · Movies / TV / Anime / Games / Software · Beta · Disabled",
     })).not.toBeChecked();
     expect(document.documentElement.lang).toBe("en-US");
     expect(document.title).toBe("Torrent404");
     await user.click(screen.getByRole("button", { name: "Search" }));
     expect(screen.getByText("Search movies, TV, anime, games and other torrents")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Movies/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /TV.*None/ })).toBeInTheDocument();
-    expect(screen.getAllByText("Ready")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: /TV.*1 source/ })).toBeInTheDocument();
+    expect(screen.getAllByText("Ready")).toHaveLength(3);
     const searchButtons = screen.getAllByRole("button", { name: "Search" });
     await user.click(searchButtons.at(-1)!);
     expect(screen.getByText("Enter keywords, a magnet, or an infohash first.")).toBeInTheDocument();
@@ -244,9 +246,9 @@ describe("desktop shell", () => {
     const user = userEvent.setup();
     render(<App searchClient={client} downloadClient={shellDownloadClient()} />);
 
-    await user.click(await screen.findByRole("button", { name: /剧集.*暂无/ }));
+    await user.click(await screen.findByRole("button", { name: /游戏.*暂无/ }));
 
-    expect(screen.getByRole("heading", { name: "当前暂无剧集搜索来源" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "当前暂无游戏搜索来源" })).toBeInTheDocument();
     expect(screen.getByText("更多搜索来源将在后续版本加入。")).toBeInTheDocument();
     const searchButton = searchActionButton();
     expect(searchButton).toBeDisabled();
@@ -263,6 +265,10 @@ describe("desktop shell", () => {
     expect(await screen.findByRole("heading", { name: "内置搜索来源" })).toBeInTheDocument();
     expect(screen.getByText("YTS")).toBeInTheDocument();
     expect(screen.getByText("Nyaa")).toBeInTheDocument();
+    expect(screen.getByText("EZTV")).toBeInTheDocument();
+    expect(screen.getByText("TPB")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "EZTV · 已启用" })).toBeChecked();
+    expect(screen.getByRole("switch", { name: "TPB · 已停用" })).not.toBeChecked();
     const nyaaToggle = screen.getByRole("switch", { name: "Nyaa · 已启用" });
     expect(nyaaToggle).toBeChecked();
     await user.click(nyaaToggle);
@@ -270,13 +276,14 @@ describe("desktop shell", () => {
 
     await user.click(screen.getByRole("button", { name: "搜索" }));
     expect(await screen.findByRole("button", { name: /动漫.*暂无/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /全部.*1 来源/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /全部.*2 来源/ })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /动漫.*暂无/ }));
     expect(searchActionButton()).toBeDisabled();
     expect(client.start).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "设置" }));
     await user.click(screen.getByRole("switch", { name: "YTS · 已启用" }));
+    await user.click(screen.getByRole("switch", { name: "EZTV · 已启用" }));
     await user.click(screen.getByRole("button", { name: "搜索" }));
     await user.click(screen.getByRole("button", { name: /全部.*暂无/ }));
     const input = screen.getByPlaceholderText("搜索资源，或粘贴 Magnet 链接直接下载");
@@ -302,7 +309,7 @@ describe("desktop shell", () => {
     expect(await screen.findByRole("switch", { name: "Nyaa · 已停用" })).not.toBeChecked();
     await user.click(screen.getByRole("button", { name: "搜索" }));
     expect(await screen.findByRole("button", { name: /动漫.*暂无/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /全部.*1 来源/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /全部.*2 来源/ })).toBeInTheDocument();
   });
 
   it("keeps Knaben off by default and persists explicit enable and disable choices", async () => {
@@ -310,23 +317,25 @@ describe("desktop shell", () => {
     const firstRun = render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
     await user.click(screen.getByRole("button", { name: "设置" }));
     const disabled = await screen.findByRole("switch", {
-      name: "Knaben · 影视 · Beta · 已停用",
+      name: "Knaben · 电影 / 剧集 / 动漫 / 游戏 / 软件 · Beta · 已停用",
     });
     expect(disabled).not.toBeChecked();
     await user.click(disabled);
     expect(screen.getByRole("switch", {
-      name: "Knaben · 影视 · Beta · 已启用",
+      name: "Knaben · 电影 / 剧集 / 动漫 / 游戏 / 软件 · Beta · 已启用",
     })).toBeChecked();
     await user.click(screen.getByRole("button", { name: "搜索" }));
-    expect(await screen.findByRole("button", { name: /全部.*3 来源/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /全部.*4 来源/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /电影.*2 来源/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /剧集.*1 来源/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /剧集.*2 来源/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /游戏.*1 来源/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /软件.*1 来源/ })).toBeInTheDocument();
     firstRun.unmount();
 
     const secondRun = render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
     await user.click(screen.getByRole("button", { name: "设置" }));
     const restored = await screen.findByRole("switch", {
-      name: "Knaben · 影视 · Beta · 已启用",
+      name: "Knaben · 电影 / 剧集 / 动漫 / 游戏 / 软件 · Beta · 已启用",
     });
     expect(restored).toBeChecked();
     await user.click(restored);
@@ -335,8 +344,23 @@ describe("desktop shell", () => {
     render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
     await user.click(screen.getByRole("button", { name: "设置" }));
     expect(await screen.findByRole("switch", {
-      name: "Knaben · 影视 · Beta · 已停用",
+      name: "Knaben · 电影 / 剧集 / 动漫 / 游戏 / 软件 · Beta · 已停用",
     })).not.toBeChecked();
+  });
+
+  it("keeps TPB off by default and persists an explicit opt-in", async () => {
+    const user = userEvent.setup();
+    const firstRun = render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    const disabled = await screen.findByRole("switch", { name: "TPB · 已停用" });
+    expect(disabled).not.toBeChecked();
+    await user.click(disabled);
+    expect(screen.getByRole("switch", { name: "TPB · 已启用" })).toBeChecked();
+    firstRun.unmount();
+
+    render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    expect(await screen.findByRole("switch", { name: "TPB · 已启用" })).toBeChecked();
   });
 
   it("recognizes a magnet and creates a download through the existing client", async () => {
@@ -554,7 +578,7 @@ describe("desktop shell", () => {
     expect(await screen.findByRole("heading", { name: "Open Animation Test" })).toBeInTheDocument();
     expect(screen.getByText(/1\.0 MiB/)).toBeInTheDocument();
     expect(screen.getByText(/1\.5 GiB/)).toBeInTheDocument();
-    expect(client.start).toHaveBeenCalledWith("open media", "all", ["yts", "nyaa"]);
+    expect(client.start).toHaveBeenCalledWith("open media", "all", ["yts", "nyaa", "eztv"]);
     expect(client.poll).toHaveBeenNthCalledWith(1, requestId, 0);
     expect(client.poll).toHaveBeenNthCalledWith(2, requestId, 2);
 
@@ -674,7 +698,11 @@ describe("desktop shell", () => {
     await user.click(searchActionButton());
 
     await waitFor(() => expect(client.cancel).toHaveBeenCalledWith("search-old"));
-    await waitFor(() => expect(client.start).toHaveBeenLastCalledWith("second", "all", ["yts", "nyaa"]));
+    await waitFor(() => expect(client.start).toHaveBeenLastCalledWith(
+      "second",
+      "all",
+      ["yts", "nyaa", "eztv"],
+    ));
     finishOldPoll({ requestId: "search-old", events: [], nextCursor: 0, done: true });
   });
 

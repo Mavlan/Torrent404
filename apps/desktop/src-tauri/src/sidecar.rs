@@ -791,11 +791,21 @@ mod tests {
         assert_eq!(providers["providers"][2]["providerId"], "knaben");
         assert_eq!(
             providers["providers"][2]["categories"],
-            json!(["movies", "tv"])
+            json!(["movies", "tv", "anime", "games", "software"])
         );
         assert_eq!(providers["providers"][2]["enabled"], false);
+        assert_eq!(providers["providers"][3]["providerId"], "eztv");
+        assert_eq!(providers["providers"][3]["categories"], json!(["tv"]));
+        assert_eq!(providers["providers"][3]["enabled"], true);
+        assert_eq!(providers["providers"][4]["providerId"], "tpb");
+        assert_eq!(
+            providers["providers"][4]["categories"],
+            json!(["movies", "tv"])
+        );
+        assert_eq!(providers["providers"][4]["enabled"], false);
+        let fixture_providers = vec!["yts".to_owned(), "nyaa".to_owned()];
         let started = supervisor
-            .start_search("legal fixture", "all", None)
+            .start_search("legal fixture", "all", Some(&fixture_providers))
             .expect("search should start");
         let request_id = started["requestId"]
             .as_str()
@@ -836,7 +846,7 @@ mod tests {
             .iter()
             .any(|event| { event["type"] == "search.complete" && event["cancelled"] == false }));
         let second = supervisor
-            .start_search("second fixture", "all", None)
+            .start_search("second fixture", "all", Some(&fixture_providers))
             .expect("second search should start");
         let second_request_id = second["requestId"]
             .as_str()

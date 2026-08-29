@@ -1,0 +1,33 @@
+[
+  {
+    "id": "101",
+    "name": "Public Domain Movie",
+    "info_hash": "ABCDEF0123456789ABCDEF0123456789ABCDEF01",
+    "seeders": "12",
+    "leechers": "3",
+    "size": "1048576",
+    "added": "1780000000",
+    "category": "201"
+  },
+  {
+    "id": "102",
+    "name": "Public Domain Series S01E01",
+    "info_hash": "0123456789ABCDEF0123456789ABCDEF01234567",
+    "seeders": "7",
+    "leechers": "2",
+    "size": "2097152",
+    "category": "205"
+  },
+  {
+    "id": "103",
+    "name": "Out of scope software",
+    "info_hash": "FEDCBA9876543210FEDCBA9876543210FEDCBA98",
+    "category": "301"
+  },
+  {
+    "id": "0",
+    "name": "No results returned",
+    "info_hash": "0000000000000000000000000000000000000000",
+    "category": "0"
+  }
+]

@@ -2,7 +2,11 @@ import type { SearchResult } from "@torlink/protocol";
 
 import type { SearchProvider } from "../SearchProvider";
 
-const YTS_ENDPOINT = "https://yts.mx/api/v2/list_movies.json";
+const YTS_ENDPOINTS = [
+  "https://yts.mx/api/v2/list_movies.json",
+  "https://yts.am/api/v2/list_movies.json",
+  "https://yts.rs/api/v2/list_movies.json",
+] as const;
 const INFO_HASH = /^[a-f\d]{40}$/i;
 
 type FetchImplementation = (
@@ -12,6 +16,7 @@ type FetchImplementation = (
 
 export interface YtsProviderOptions {
   fetchImpl?: FetchImplementation;
+  endpoints?: readonly string[];
 }
 
 function record(value: unknown): Record<string, unknown> | undefined {
@@ -48,6 +53,7 @@ function parseResponse(payload: unknown): SearchResult[] {
     const baseTitle = nonEmptyString(movie.title_long)
       ?? nonEmptyString(movie.title)
       ?? "Unknown title";
+    const added = nonNegativeNumber(movie.date_uploaded_unix);
 
     for (const torrentValue of movie.torrents) {
       const torrent = record(torrentValue);
@@ -72,6 +78,7 @@ function parseResponse(payload: unknown): SearchResult[] {
         sizeBytes: nonNegativeNumber(torrent.size_bytes) ?? 0,
         seeders: nonNegativeNumber(torrent.seeds) ?? 0,
         leechers: nonNegativeNumber(torrent.peers) ?? 0,
+        ...(added === undefined ? {} : { added }),
         magnet: buildMagnet(infoHash, title),
       });
     }
@@ -86,33 +93,44 @@ export class YtsProvider implements SearchProvider {
   readonly categories = ["movies"] as const;
 
   readonly #fetch: FetchImplementation;
+  readonly #endpoints: readonly string[];
 
-  constructor({ fetchImpl = fetch }: YtsProviderOptions = {}) {
+  constructor({ fetchImpl = fetch, endpoints = YTS_ENDPOINTS }: YtsProviderOptions = {}) {
     this.#fetch = fetchImpl;
+    this.#endpoints = [...endpoints];
   }
 
   async *search(query: string, signal: AbortSignal): AsyncIterable<SearchResult> {
-    const url = new URL(YTS_ENDPOINT);
     const normalizedQuery = query.trim();
-    url.searchParams.set("limit", "50");
-    if (normalizedQuery.length > 0) {
-      url.searchParams.set("query_term", normalizedQuery);
-    } else {
-      url.searchParams.set("sort_by", "date_added");
-    }
+    let lastError: unknown;
+    for (const endpoint of this.#endpoints) {
+      const url = new URL(endpoint);
+      url.searchParams.set("limit", "50");
+      if (normalizedQuery.length > 0) {
+        url.searchParams.set("query_term", normalizedQuery);
+      } else {
+        url.searchParams.set("sort_by", "date_added");
+      }
 
-    const response = await this.#fetch(url, {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "Yongliu404/0.1.0",
-      },
-      signal,
-    });
-    if (!response.ok) {
-      throw new Error(`YTS returned HTTP ${response.status}`);
+      try {
+        const response = await this.#fetch(url, {
+          headers: {
+            Accept: "application/json",
+            "User-Agent": "Torrent404/0.1.0",
+          },
+          signal,
+        });
+        if (!response.ok) {
+          throw new Error(`YTS returned HTTP ${response.status}`);
+        }
+        const payload: unknown = await response.json();
+        for (const result of parseResponse(payload)) yield result;
+        return;
+      } catch (error) {
+        if (signal.aborted) throw signal.reason ?? error;
+        lastError = error;
+      }
     }
-
-    const payload: unknown = await response.json();
-    for (const result of parseResponse(payload)) yield result;
+    throw lastError instanceof Error ? lastError : new Error("YTS is unreachable");
   }
 }

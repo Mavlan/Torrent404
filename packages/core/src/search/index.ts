@@ -10,6 +10,10 @@ export type {
 } from "./providers/KnabenProvider";
 export { NyaaProvider } from "./providers/NyaaProvider";
 export type { NyaaProviderOptions } from "./providers/NyaaProvider";
+export { EztvProvider } from "./providers/EztvProvider";
+export type { EztvProviderOptions } from "./providers/EztvProvider";
+export { TpbProvider } from "./providers/TpbProvider";
+export type { TpbProviderOptions } from "./providers/TpbProvider";
 export { YtsProvider } from "./providers/YtsProvider";
 export type { YtsProviderOptions } from "./providers/YtsProvider";
 export type {

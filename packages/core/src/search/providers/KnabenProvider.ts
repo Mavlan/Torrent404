@@ -3,7 +3,14 @@ import type { SearchResult } from "@torlink/protocol";
 import type { SearchProvider } from "../SearchProvider";
 
 const KNABEN_ENDPOINT = "https://api.knaben.org/v1";
-const KNABEN_CATEGORIES = [2_000_000, 3_000_000] as const;
+const KNABEN_CATEGORIES = {
+  all: [2_000_000, 3_000_000, 4_000_000, 6_000_000],
+  movies: [3_000_000],
+  tv: [2_000_000],
+  anime: [6_000_000],
+  games: [4_001_000],
+  software: [4_002_000, 4_003_000, 4_004_000],
+} as const;
 const INFO_HASH = /^[a-f\d]{40}$/i;
 
 type FetchImplementation = (
@@ -69,11 +76,23 @@ function normalizedMagnet(value: unknown, expectedInfoHash: string): string | un
   }
 }
 
-function normalizedCategory(value: unknown): "movies" | "tv" | "movies-tv" {
+function normalizedCategory(value: unknown): string {
   const category = nonEmptyString(value)?.toLowerCase();
   if (category?.startsWith("movies")) return "movies";
   if (category?.startsWith("tv")) return "tv";
-  return "movies-tv";
+  if (category?.startsWith("anime")) return "anime";
+  if (category?.startsWith("pc / games")) return "games";
+  if (category?.startsWith("pc / software")
+    || category?.startsWith("pc / mac")
+    || category?.startsWith("pc / unix")) return "software";
+  return "other";
+}
+
+function categoriesFor(category: string | undefined): readonly number[] {
+  if (category && category in KNABEN_CATEGORIES) {
+    return KNABEN_CATEGORIES[category as keyof typeof KNABEN_CATEGORIES];
+  }
+  return KNABEN_CATEGORIES.all;
 }
 
 function parseResponse(payload: unknown): SearchResult[] {
@@ -122,7 +141,7 @@ function httpError(status: number): KnabenProviderError {
 export class KnabenProvider implements SearchProvider {
   readonly id = "knaben";
   readonly displayName = "Knaben";
-  readonly categories = ["movies", "tv"] as const;
+  readonly categories = ["movies", "tv", "anime", "games", "software"] as const;
   readonly defaultEnabled = false;
 
   readonly #fetch: FetchImplementation;
@@ -131,7 +150,11 @@ export class KnabenProvider implements SearchProvider {
     this.#fetch = fetchImpl;
   }
 
-  async *search(query: string, signal: AbortSignal): AsyncIterable<SearchResult> {
+  async *search(
+    query: string,
+    signal: AbortSignal,
+    category?: string,
+  ): AsyncIterable<SearchResult> {
     let response: Response;
     try {
       response = await this.#fetch(KNABEN_ENDPOINT, {
@@ -139,7 +162,7 @@ export class KnabenProvider implements SearchProvider {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
-          "User-Agent": "Yongliu404/0.1.0",
+          "User-Agent": "Torrent404/0.1.0",
         },
         body: JSON.stringify({
           search_type: "100%",
@@ -147,7 +170,7 @@ export class KnabenProvider implements SearchProvider {
           query: query.trim(),
           order_by: "seeders",
           order_direction: "desc",
-          categories: KNABEN_CATEGORIES,
+          categories: categoriesFor(category),
           from: 0,
           size: 50,
           hide_unsafe: true,

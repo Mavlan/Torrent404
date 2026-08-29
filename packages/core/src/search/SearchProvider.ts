@@ -9,7 +9,11 @@ export interface SearchProvider {
   readonly enabled?: boolean;
   /** Initial product preference; users may explicitly override it. */
   readonly defaultEnabled?: boolean;
-  search(query: string, signal: AbortSignal): AsyncIterable<SearchResult>;
+  search(
+    query: string,
+    signal: AbortSignal,
+    category?: string,
+  ): AsyncIterable<SearchResult>;
   healthCheck?(): Promise<boolean>;
 }
 

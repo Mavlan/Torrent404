@@ -1,0 +1,24 @@
+{
+  "torrents": [
+    {
+      "hash": "ABCDEF0123456789ABCDEF0123456789ABCDEF01",
+      "title": "Foundation S03E01 1080p WEB EZTV",
+      "magnet_url": "magnet:?xt=urn:btih:ABCDEF0123456789ABCDEF0123456789ABCDEF01&dn=Foundation",
+      "seeds": 42,
+      "peers": 7,
+      "size_bytes": "1048576",
+      "date_released_unix": 1780000000
+    },
+    {
+      "hash": "0123456789ABCDEF0123456789ABCDEF01234567",
+      "filename": "Other.Show.S01E01.mkv",
+      "seeds": 3,
+      "peers": 1,
+      "size_bytes": 2048
+    },
+    {
+      "hash": "not-a-hash",
+      "title": "Foundation malformed"
+    }
+  ]
+}

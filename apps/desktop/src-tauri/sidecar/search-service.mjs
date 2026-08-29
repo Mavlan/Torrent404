@@ -73,6 +73,7 @@ export class SearchService {
     const session = {
       requestId,
       providerIds,
+      category,
       controller,
       events: [],
       statuses: new Map(),
@@ -176,6 +177,7 @@ export class SearchService {
       const results = this.#aggregator.search(query, {
         signal: session.controller.signal,
         providerIds: session.providerIds,
+        category: session.category,
         onProviderFailure: ({ providerId, code }) => {
           const timedOut = code === "timeout";
           this.#setProviderStatus(

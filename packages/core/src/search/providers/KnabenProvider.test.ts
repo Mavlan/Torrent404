@@ -62,7 +62,7 @@ describe("KnabenProvider", () => {
       query: "中文影视",
       order_by: "seeders",
       order_direction: "desc",
-      categories: [2_000_000, 3_000_000],
+      categories: [2_000_000, 3_000_000, 4_000_000, 6_000_000],
       from: 0,
       size: 50,
       hide_unsafe: true,
@@ -79,7 +79,7 @@ describe("KnabenProvider", () => {
     });
     const results = await collect(malformed.search("test", new AbortController().signal));
     expect(results).toHaveLength(2);
-    expect(results.map(({ category }) => category)).toEqual(["movies-tv", "movies-tv"]);
+    expect(results.map(({ category }) => category)).toEqual(["anime", "other"]);
     expect(results[0]).toMatchObject({
       infoHash: "fedcba9876543210fedcba9876543210fedcba98",
       sizeBytes: 0,
@@ -125,13 +125,30 @@ describe("KnabenProvider", () => {
     expect(registry.describe()).toEqual([{
       id: "knaben",
       displayName: "Knaben",
-      categories: ["movies", "tv"],
+      categories: ["movies", "tv", "anime", "games", "software"],
       enabled: false,
     }]);
     await expect(collect(aggregator.search("test"))).resolves.toEqual([]);
     expect(fetchImpl).not.toHaveBeenCalled();
     await expect(collect(aggregator.search("test", { providerIds: ["knaben"] })))
       .resolves.toHaveLength(2);
+  });
+
+  it("uses the official Knaben category IDs selected by the desktop category", async () => {
+    const fetchImpl = fixtureFetch(await fixture("knaben-empty"));
+    const provider = new KnabenProvider({ fetchImpl });
+
+    await collect(provider.search("game", new AbortController().signal, "games"));
+    await collect(provider.search("editor", new AbortController().signal, "software"));
+    await collect(provider.search("anime", new AbortController().signal, "anime"));
+
+    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body)).categories).toEqual([4_001_000]);
+    expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body)).categories).toEqual([
+      4_002_000,
+      4_003_000,
+      4_004_000,
+    ]);
+    expect(JSON.parse(String(fetchImpl.mock.calls[2]?.[1]?.body)).categories).toEqual([6_000_000]);
   });
 
   it("obeys timeout/cancellation and remains isolated from healthy providers", async () => {

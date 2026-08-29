@@ -122,11 +122,13 @@ test("cancels an active search and reports cancelled provider state", async () =
 
 test("filters providers by category and skips disabled providers", async () => {
   let moviesCalls = 0;
+  let selectedCategory;
   let animeCalls = 0;
   let disabledCalls = 0;
   const registry = new ProviderRegistry([
-    provider("movies", async function* () {
+    provider("movies", async function* (_query, _signal, category) {
       moviesCalls += 1;
+      selectedCategory = category;
       yield { id: "movies:1", title: "Movie", source: "movies" };
     }, { categories: ["movies"] }),
     provider("anime", async function* () {
@@ -144,6 +146,7 @@ test("filters providers by category and skips disabled providers", async () => {
   const { events } = await collect(service, "search-category");
 
   assert.equal(moviesCalls, 1);
+  assert.equal(selectedCategory, "movies");
   assert.equal(animeCalls, 0);
   assert.equal(disabledCalls, 0);
   assert.deepEqual(

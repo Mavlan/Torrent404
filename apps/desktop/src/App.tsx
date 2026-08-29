@@ -764,14 +764,14 @@ function App({
                   <div className="settings-source-list">
                     {!providersLoaded ? <span>{t("search.sourcesLoading")}</span> : null}
                     {providers.map((provider) => {
-                      const isKnaben = provider.providerId === "knaben";
+                      const isBeta = provider.providerId === "knaben";
                       const stateLabel = t(provider.enabled
                         ? "settings.sourceEnabled"
                         : "settings.sourceDisabled");
-                      const categoryLabel = isKnaben
-                        ? t("settings.knabenCategories")
-                        : provider.categories.map((item) => t(categoryLabelKeys[item])).join(" / ");
-                      const details = `${categoryLabel}${isKnaben ? ` · ${t("settings.sourceBeta")}` : ""} · ${stateLabel}`;
+                      const categoryLabel = provider.categories
+                        .map((item) => t(categoryLabelKeys[item]))
+                        .join(" / ");
+                      const details = `${categoryLabel}${isBeta ? ` · ${t("settings.sourceBeta")}` : ""} · ${stateLabel}`;
                       return (
                         <article key={provider.providerId}>
                           <div>
@@ -780,7 +780,7 @@ function App({
                           </div>
                           <button
                             aria-checked={provider.enabled}
-                            aria-label={isKnaben
+                            aria-label={isBeta
                               ? `${provider.displayName} · ${details}`
                               : `${provider.displayName} · ${stateLabel}`}
                             className={provider.enabled ? "source-toggle enabled" : "source-toggle"}

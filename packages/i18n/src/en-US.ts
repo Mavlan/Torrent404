@@ -134,7 +134,6 @@ export const enUS = {
   "settings.sourceDisabled": "Disabled",
   "settings.sourceBuiltIn": "Built in",
   "settings.sourceBeta": "Beta",
-  "settings.knabenCategories": "Movies & TV",
   "about.kicker": "About this build",
   "about.title": "About Torrent404",
   "about.subtitle": "Independent, transparent, and clear about its boundaries.",

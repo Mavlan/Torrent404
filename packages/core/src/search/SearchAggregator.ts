@@ -15,6 +15,7 @@ export interface SearchOptions {
   signal?: AbortSignal;
   timeoutMs?: number;
   providerIds?: readonly string[];
+  category?: string;
   onProviderFailure?: (failure: ProviderSearchFailure) => void;
 }
 
@@ -157,7 +158,11 @@ export class SearchAggregator {
       }, timeoutMs);
 
       try {
-        const iterator = provider.search(query, controller.signal)[Symbol.asyncIterator]();
+        const iterator = provider.search(
+          query,
+          controller.signal,
+          options.category,
+        )[Symbol.asyncIterator]();
         while (!controller.signal.aborted && !options.signal?.aborted) {
           const next = await nextWithAbort(iterator, controller.signal);
           if (next.done) break;

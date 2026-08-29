@@ -79,4 +79,43 @@ describe("YtsProvider", () => {
       leechers: 0,
     });
   });
+
+  it("falls back across the approved hosts and stops after the first valid response", async () => {
+    const payload = await fixture("yts-normal");
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(new Response("", { status: 503 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(payload), { status: 200 }));
+    const provider = new YtsProvider({
+      fetchImpl,
+      endpoints: [
+        "https://yts.mx/api/v2/list_movies.json",
+        "https://yts.am/api/v2/list_movies.json",
+        "https://yts.rs/api/v2/list_movies.json",
+      ],
+    });
+
+    await expect(collect(provider.search("test", new AbortController().signal)))
+      .resolves.toHaveLength(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect((fetchImpl.mock.calls[0]?.[0] as URL).host).toBe("yts.mx");
+    expect((fetchImpl.mock.calls[1]?.[0] as URL).host).toBe("yts.am");
+  });
+
+  it("fails only after every approved host fails and aborts without fallback", async () => {
+    const fetchImpl = vi.fn(async () => new Response("", { status: 503 }));
+    const provider = new YtsProvider({ fetchImpl });
+    await expect(collect(provider.search("test", new AbortController().signal)))
+      .rejects.toThrow("YTS returned HTTP 503");
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+
+    const controller = new AbortController();
+    const abortingFetch = vi.fn(async (_input: string | URL, init?: RequestInit) => {
+      controller.abort(new Error("cancelled"));
+      throw init?.signal?.reason;
+    });
+    const aborted = new YtsProvider({ fetchImpl: abortingFetch });
+    await expect(collect(aborted.search("test", controller.signal)))
+      .rejects.toThrow("cancelled");
+    expect(abortingFetch).toHaveBeenCalledOnce();
+  });
 });

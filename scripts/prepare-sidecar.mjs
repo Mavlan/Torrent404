@@ -62,8 +62,10 @@ await mkdir(sidecarCoreDirectory, { recursive: true });
 for (const [source, target] of [
   [path.join("search", "ProviderRegistry.js"), "ProviderRegistry.js"],
   [path.join("search", "SearchAggregator.js"), "SearchAggregator.js"],
+  [path.join("search", "providers", "EztvProvider.js"), "EztvProvider.js"],
   [path.join("search", "providers", "KnabenProvider.js"), "KnabenProvider.js"],
   [path.join("search", "providers", "NyaaProvider.js"), "NyaaProvider.js"],
+  [path.join("search", "providers", "TpbProvider.js"), "TpbProvider.js"],
   [path.join("search", "providers", "YtsProvider.js"), "YtsProvider.js"],
   [path.join("tasks", "DownloadTaskModel.js"), path.join("tasks", "DownloadTaskModel.js")],
   [path.join("torrent", "TorrentManager.js"), path.join("torrent", "TorrentManager.js")],
