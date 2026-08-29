@@ -16,6 +16,7 @@ import {
   type SearchProviderStatus,
   type SearchResult,
 } from "@torlink/protocol";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import { desktopDownloadClient, type DownloadClient } from "./downloadClient";
 import { isMagnetInput } from "./magnetInput";
 import { loadProviderPreferences, saveProviderPreferences } from "./providerPreferences";
@@ -506,7 +507,15 @@ if (active) {
     operation: "pause" | "resume" | "startSeeding" | "stopSeeding" | "remove",
   ) => {
     if (controllingTaskIds.has(task.id)) return;
-    if (operation === "remove" && !window.confirm(t("downloads.removeConfirm"))) return;
+    if (
+      operation === "remove" &&
+      !(await confirm(t("downloads.removeConfirm"), {
+        title: "Torrent404",
+        kind: "warning",
+      }))
+    ) {
+      return;
+    }
     setControllingTaskIds((current) => new Set(current).add(task.id));
     setNotice(null);
     try {

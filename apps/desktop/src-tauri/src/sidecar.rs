@@ -22,7 +22,7 @@ const TORRENT_ENGINE_FIXTURE_ENV: &str = "TORLINK_TORRENT_ENGINE_FIXTURE";
 const TASK_STORE_PATH_ENV: &str = "TORLINK_TASK_STORE_PATH";
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(3);
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
-const IPC_TIMEOUT: Duration = Duration::from_secs(1);
+const IPC_TIMEOUT: Duration = Duration::from_secs(5);
 const MAX_IPC_RESPONSE_BYTES: u64 = 64 * 1024;
 const MAX_STARTUP_STDERR_BYTES: u64 = 8 * 1024;
 

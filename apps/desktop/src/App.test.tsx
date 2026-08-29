@@ -1,10 +1,16 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import type { DownloadTask } from "@torlink/protocol";
 import App from "./App";
 import type { DownloadClient } from "./downloadClient";
 import type { SearchClient } from "./searchClient";
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  confirm: vi.fn().mockResolvedValue(true),
+  open: vi.fn().mockResolvedValue(null),
+}));
 
 const providerResult = {
   providers: [
@@ -738,14 +744,15 @@ it("marks startup-restored paused tasks as pending verification until resume", a
     expect(downloads.resume).toHaveBeenCalledWith("download-public-domain");
     expect(await screen.findByText("下载任务已恢复。")).toBeInTheDocument();
 
-    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const confirmMock = vi.mocked(confirm);
+    confirmMock.mockClear();
+    confirmMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     await user.click(screen.getByRole("button", { name: "移除" }));
     expect(downloads.remove).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "移除" }));
     expect(downloads.remove).toHaveBeenCalledWith("download-public-domain");
     expect(await screen.findByRole("heading", { name: "下载队列安静待命" })).toBeInTheDocument();
     expect(screen.getByText("任务已从列表移除，本地文件已保留。")).toBeInTheDocument();
-    confirm.mockRestore();
   });
 
   it("disables results without a magnet and localizes structured download errors", async () => {
