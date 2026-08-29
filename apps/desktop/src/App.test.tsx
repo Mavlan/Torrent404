@@ -78,6 +78,43 @@ describe("desktop shell", () => {
     expect(screen.getByRole("heading", { name: "下载队列安静待命" })).toBeInTheDocument();
   });
 
+  it("hydrates persisted task counts on startup without opening Downloads or Completed", async () => {
+  const completedTask: DownloadTask = {
+    id: "download-completed",
+    infoHash: "abcdef0123456789abcdef0123456789abcdef02",
+    name: "Completed fixture",
+    status: "completed",
+    progress: 1,
+    downloadSpeed: 0,
+    uploadSpeed: 0,
+    downloaded: 1_048_576,
+    total: 1_048_576,
+    peers: 0,
+    etaSeconds: 0,
+    savePath: "C:\\Downloads\\Torrent404",
+  };
+
+  const downloads: DownloadClient = {
+    add: vi.fn().mockRejectedValue(new Error("add not expected")),
+    pause: vi.fn().mockRejectedValue(new Error("pause not expected")),
+    resume: vi.fn().mockRejectedValue(new Error("resume not expected")),
+    startSeeding: vi.fn().mockRejectedValue(new Error("start seeding not expected")),
+    stopSeeding: vi.fn().mockRejectedValue(new Error("stop seeding not expected")),
+    remove: vi.fn().mockRejectedValue(new Error("remove not expected")),
+    list: vi.fn().mockResolvedValue({ tasks: [completedTask] }),
+    directory: vi.fn().mockResolvedValue("C:\\Downloads\\Torrent404"),
+    selectDirectory: vi.fn().mockResolvedValue(null),
+  };
+
+  render(<App searchClient={shellClient()} downloadClient={downloads} />);
+
+  expect(
+    await screen.findByRole("button", { name: /已完成.*01/ }),
+  ).toBeInTheDocument();
+
+  expect(downloads.list).toHaveBeenCalled();
+});
+
   it("polls live task snapshots and refreshes them when re-entering Downloads", async () => {
     let snapshot: DownloadTask = {
       id: "download-live",

@@ -252,6 +252,25 @@ function App({
   }, [searchClient]);
 
   useEffect(() => {
+  let active = true;
+
+  const hydrateTasks = async () => {
+    try {
+      const response = await downloadClient.list();
+      if (active) setDownloadTasks(response.tasks);
+    } catch {
+      // Keep the initial empty snapshot if local IPC is temporarily unavailable.
+    }
+  };
+
+  void hydrateTasks();
+
+  return () => {
+    active = false;
+  };
+}, [downloadClient]);
+
+  useEffect(() => {
     if (page !== "downloading" && page !== "completed") return;
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
