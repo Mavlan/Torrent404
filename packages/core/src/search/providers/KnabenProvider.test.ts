@@ -116,7 +116,7 @@ describe("KnabenProvider", () => {
       .rejects.toMatchObject({ code: "network_error" });
   });
 
-  it("is disabled by default but can be selected explicitly", async () => {
+  it("is enabled by default", async () => {
     const fetchImpl = fixtureFetch(await fixture("knaben-normal"));
     const provider = new KnabenProvider({ fetchImpl });
     const registry = new ProviderRegistry([provider]);
@@ -126,12 +126,10 @@ describe("KnabenProvider", () => {
       id: "knaben",
       displayName: "Knaben",
       categories: ["movies", "tv", "anime", "games", "software"],
-      enabled: false,
+      enabled: true,
     }]);
-    await expect(collect(aggregator.search("test"))).resolves.toEqual([]);
-    expect(fetchImpl).not.toHaveBeenCalled();
-    await expect(collect(aggregator.search("test", { providerIds: ["knaben"] })))
-      .resolves.toHaveLength(2);
+    await expect(collect(aggregator.search("test"))).resolves.toHaveLength(2);
+    expect(fetchImpl).toHaveBeenCalledOnce();
   });
 
   it("uses the official Knaben category IDs selected by the desktop category", async () => {

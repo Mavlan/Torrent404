@@ -24,11 +24,16 @@ describe("Torrent404 search coverage", () => {
         id: "knaben",
         displayName: "Knaben",
         categories: ["movies", "tv", "anime", "games", "software"],
-        enabled: false,
+        enabled: true,
       },
       { id: "eztv", displayName: "EZTV", categories: ["tv"], enabled: true },
       { id: "tpb", displayName: "TPB", categories: ["movies", "tv"], enabled: false },
     ]);
-    expect(registry.listEnabled().map(({ id }) => id)).toEqual(["yts", "nyaa", "eztv"]);
+    expect(registry.listEnabled().map(({ id }) => id)).toEqual([
+      "yts",
+      "nyaa",
+      "knaben",
+      "eztv",
+    ]);
   });
 });

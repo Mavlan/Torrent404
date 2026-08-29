@@ -793,7 +793,7 @@ mod tests {
             providers["providers"][2]["categories"],
             json!(["movies", "tv", "anime", "games", "software"])
         );
-        assert_eq!(providers["providers"][2]["enabled"], false);
+        assert_eq!(providers["providers"][2]["enabled"], true);
         assert_eq!(providers["providers"][3]["providerId"], "eztv");
         assert_eq!(providers["providers"][3]["categories"], json!(["tv"]));
         assert_eq!(providers["providers"][3]["enabled"], true);

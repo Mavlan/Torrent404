@@ -142,7 +142,7 @@ export class KnabenProvider implements SearchProvider {
   readonly id = "knaben";
   readonly displayName = "Knaben";
   readonly categories = ["movies", "tv", "anime", "games", "software"] as const;
-  readonly defaultEnabled = false;
+  readonly defaultEnabled = true;
 
   readonly #fetch: FetchImplementation;
 
