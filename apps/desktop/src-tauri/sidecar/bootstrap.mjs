@@ -12,6 +12,7 @@ import { YtsProvider } from "./core/YtsProvider.js";
 import { TorrentManager } from "./core/torrent/TorrentManager.js";
 import { WebTorrentAdapter } from "./core/torrent/WebTorrentAdapter.js";
 import { DownloadCommandError, DownloadService } from "./download-service.mjs";
+import { DownloadTaskStore } from "./download-task-store.mjs";
 import { SearchCommandError, SearchService } from "./search-service.mjs";
 
 const LOOPBACK_HOST = "127.0.0.1";
@@ -42,6 +43,7 @@ function fixtureFetch(filePath, contentType) {
 const ytsFixture = process.env.TORLINK_YTS_FIXTURE;
 const nyaaFixture = process.env.TORLINK_NYAA_FIXTURE;
 const torrentEngineFixture = process.env.TORLINK_TORRENT_ENGINE_FIXTURE;
+const taskStorePath = process.env.TORLINK_TASK_STORE_PATH;
 const providers = [
   new YtsProvider(ytsFixture
     ? { fetchImpl: fixtureFetch(ytsFixture, "application/json") }
@@ -106,8 +108,14 @@ function createTorrentEngine() {
 }
 
 const torrentEngine = createTorrentEngine();
-const torrentManager = new TorrentManager(torrentEngine);
-const downloadService = new DownloadService(torrentManager);
+const taskStore = taskStorePath ? new DownloadTaskStore(taskStorePath) : undefined;
+const torrentManager = new TorrentManager(torrentEngine, {
+  onPersistenceChange: (tasks) => taskStore?.replace(tasks),
+});
+if (taskStore) torrentManager.restore(await taskStore.load());
+const downloadService = new DownloadService(torrentManager, {
+  flushPersistence: () => taskStore?.flush(),
+});
 
 function sendJson(response, statusCode, body) {
   const payload = JSON.stringify(body);
@@ -251,7 +259,7 @@ async function handleCommand(response, request) {
         ok: true,
         protocolVersion: IPC_PROTOCOL_VERSION,
         command: "download.resume",
-        result: downloadService.resume(request),
+        result: await downloadService.resume(request),
       });
       return;
     }

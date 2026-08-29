@@ -19,6 +19,7 @@ const SESSION_TOKEN_ENV: &str = "TORLINK_SESSION_TOKEN";
 const YTS_FIXTURE_ENV: &str = "TORLINK_YTS_FIXTURE";
 const NYAA_FIXTURE_ENV: &str = "TORLINK_NYAA_FIXTURE";
 const TORRENT_ENGINE_FIXTURE_ENV: &str = "TORLINK_TORRENT_ENGINE_FIXTURE";
+const TASK_STORE_PATH_ENV: &str = "TORLINK_TASK_STORE_PATH";
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(3);
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 const IPC_TIMEOUT: Duration = Duration::from_secs(1);
@@ -49,6 +50,7 @@ pub(crate) struct SidecarLaunchConfig {
     pub(crate) yts_fixture: Option<PathBuf>,
     pub(crate) nyaa_fixture: Option<PathBuf>,
     pub(crate) torrent_engine_fixture: Option<String>,
+    pub(crate) task_store_path: Option<PathBuf>,
 }
 
 #[derive(Clone)]
@@ -211,6 +213,7 @@ impl SidecarSupervisor {
             .env_remove(YTS_FIXTURE_ENV)
             .env_remove(NYAA_FIXTURE_ENV)
             .env_remove(TORRENT_ENGINE_FIXTURE_ENV)
+            .env_remove(TASK_STORE_PATH_ENV)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -222,6 +225,9 @@ impl SidecarSupervisor {
         }
         if let Some(fixture) = &config.torrent_engine_fixture {
             command.env(TORRENT_ENGINE_FIXTURE_ENV, fixture);
+        }
+        if let Some(path) = &config.task_store_path {
+            command.env(TASK_STORE_PATH_ENV, path);
         }
 
         #[cfg(target_os = "windows")]
@@ -772,6 +778,7 @@ mod tests {
             yts_fixture: Some(search_fixture("yts-normal.json")),
             nyaa_fixture: Some(search_fixture("nyaa-normal.xml")),
             torrent_engine_fixture: None,
+            task_store_path: None,
         };
         let mut supervisor = started_supervisor_with_config(&config);
         let providers = supervisor
@@ -929,6 +936,80 @@ mod tests {
 
         supervisor.stop().expect("sidecar should stop");
         let _ = std::fs::remove_dir_all(download_dir);
+    }
+
+    #[test]
+    fn persists_paused_downloads_across_sidecar_restarts_and_removes_them_durably() {
+        let root = std::env::temp_dir().join(format!(
+            "torrent404-task-persistence-{}-{}",
+            std::process::id(),
+            generate_random_hex(4).expect("test suffix should be random")
+        ));
+        let download_dir = root.join("downloads");
+        let task_store_path = root.join("state").join("download-tasks.v1.json");
+        let config = SidecarLaunchConfig {
+            torrent_engine_fixture: Some("success".to_owned()),
+            task_store_path: Some(task_store_path.clone()),
+            ..SidecarLaunchConfig::default()
+        };
+        let magnet = "magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01";
+
+        let mut first = started_supervisor_with_config(&config);
+        let added = first
+            .add_download(magnet, Some("Restart fixture"), Some(42), &download_dir)
+            .expect("download should be added");
+        let task_id = added["result"]["taskId"]
+            .as_str()
+            .expect("download should have task ID")
+            .to_owned();
+        let paused = first
+            .control_download("download.pause", &task_id)
+            .expect("download should pause");
+        assert_eq!(paused["result"]["task"]["status"], "paused");
+        first.stop().expect("first sidecar should stop cleanly");
+        assert!(task_store_path.is_file());
+
+        let stored: Value = serde_json::from_slice(
+            &std::fs::read(&task_store_path).expect("task store should be readable"),
+        )
+        .expect("task store should contain JSON");
+        assert_eq!(stored["schemaVersion"], 1);
+        assert_eq!(stored["tasks"][0]["status"], "paused");
+        assert!(stored["tasks"][0].get("downloadSpeed").is_none());
+        assert!(stored["tasks"][0].get("peers").is_none());
+
+        let mut second = started_supervisor_with_config(&config);
+        let restored = second
+            .list_downloads()
+            .expect("restored snapshots should be available");
+        assert_eq!(restored["tasks"][0]["id"], task_id);
+        assert_eq!(restored["tasks"][0]["status"], "paused");
+        assert_eq!(
+            restored["tasks"][0]["savePath"],
+            download_dir.to_string_lossy().as_ref()
+        );
+        assert_eq!(
+            restored["tasks"][0]["infoHash"],
+            "abcdef0123456789abcdef0123456789abcdef01"
+        );
+
+        let resumed = second
+            .control_download("download.resume", &task_id)
+            .expect("restored task should resume through its stored source");
+        assert_eq!(resumed["result"]["task"]["status"], "downloading");
+        let removed = second
+            .control_download("download.remove", &task_id)
+            .expect("restored task should be removable");
+        assert_eq!(removed["result"]["removed"], true);
+        second.stop().expect("second sidecar should stop cleanly");
+
+        let mut third = started_supervisor_with_config(&config);
+        let after_remove = third
+            .list_downloads()
+            .expect("empty restored snapshots should be available");
+        assert_eq!(after_remove["tasks"], json!([]));
+        third.stop().expect("third sidecar should stop cleanly");
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]

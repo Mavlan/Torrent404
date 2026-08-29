@@ -749,3 +749,23 @@ Release 文件：
   四 workspace typecheck、`cargo fmt --check`、`cargo check --locked` 与 production bundle PASS。
 - installed sidecar Node `v24.20.0` 运行 8 MiB 本地合法 fixture：完成后等待 3 秒仍为
   `completed` / upload 0 / peers 0；显式开始做种后进入 `seeding`，停止后 engine 解除且 SHA-256 不变。
+
+## 2026-08-29 — v0.1 task persistence and restart resume
+
+- 新增版本化原子 JSON store：Windows 位置为
+  `%LOCALAPPDATA%\io.github.yongliu404.desktop\download-tasks.v1.json`。仅保存 task ID、原始
+  magnet/source、infoHash、名称、下载路径、总大小、稳定状态、announce 与 base64 torrent metadata；
+  不保存 speed、peers、ETA 或运行时 progress。
+- sidecar 启动时离线恢复记录：未完成任务统一为 `paused`，`completed` / `seeding` 统一恢复为
+  `completed`，均不自动挂载 WebTorrent。恢复任务 Resume 时使用持久化 torrent metadata、原路径和
+  source 重新挂载，由 WebTorrent 校验并复用已有 pieces。
+- Add、metadata、Pause、Resume、Complete、Start/Stop seeding 与 Remove 会更新 store；状态变化采用
+  串行原子替换，shutdown 等待 pending write，不按 progress polling 高频写盘。缺失、损坏或旧 schema
+  安全回退为空记录。
+- 定向测试：Core TorrentManager 11/11、sidecar service/store 12/12、Tauri config 3/3、Rust 真实
+  sidecar restart 1/1 PASS；Core/Desktop typecheck、`cargo fmt --check`、`cargo check --locked` 与
+  Windows production NSIS/MSI build PASS。
+- 4 MiB 本地合法 fixture 在 262,144 bytes 暂停并模拟进程重启；seeder 限速 1 B/s 时新 engine 从
+  原目录校验出同样 262,144 bytes，续传完成后 SHA-256 为
+  `a117210941a0b00dcb2d8577e680d84b6fa0eaf760d2afc654c953b9859d54fa`。completed 重启保持离线，
+  seeding 重启降级 completed，Remove 后 store 为空且文件 hash 不变。

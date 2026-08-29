@@ -60,7 +60,7 @@ class FakeManager {
     return true;
   }
 
-  resume(id) {
+  async resume(id) {
     if (!this.resumeResult || !this.tasks.has(id)) return false;
     const task = this.tasks.get(id);
     this.tasks.set(id, {
@@ -207,7 +207,7 @@ test("pauses, resumes, and removes tasks only through the manager", async () => 
 
   const paused = downloads.pause({ taskId: added.taskId });
   assert.equal(paused.task.status, "paused");
-  const resumed = downloads.resume({ taskId: added.taskId });
+  const resumed = await downloads.resume({ taskId: added.taskId });
   assert.equal(resumed.task.status, "downloading");
   assert.deepEqual(await downloads.remove({ taskId: added.taskId }), {
     taskId: "download-test",
@@ -270,8 +270,8 @@ test("returns structured missing-task, invalid-transition, and engine control er
     downloads.startSeeding({ taskId: added.taskId }),
     (error) => error.code === "invalid_download_task_transition" && error.statusCode === 409,
   );
-  assert.throws(
-    () => downloads.resume({ taskId: added.taskId }),
+  await assert.rejects(
+    downloads.resume({ taskId: added.taskId }),
     (error) => error.code === "invalid_download_task_transition" && error.statusCode === 409,
   );
 
@@ -289,7 +289,12 @@ test("returns structured missing-task, invalid-transition, and engine control er
 });
 
 test("destroys the manager-owned engine during shutdown", async () => {
-  const { manager, service: downloads } = service();
+  const manager = new FakeManager();
+  let flushed = false;
+  const downloads = new DownloadService(manager, {
+    flushPersistence: async () => { flushed = true; },
+  });
   await downloads.shutdown();
+  assert.equal(flushed, true);
   assert.equal(manager.destroyed, true);
 });

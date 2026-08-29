@@ -213,10 +213,23 @@ pub fn run() {
                     return Ok(());
                 }
             };
+            let task_store_path = match app.path().app_local_data_dir() {
+                Ok(path) => path.join("download-tasks.v1.json"),
+                Err(error) => {
+                    show_startup_failure(&format!(
+                        "the local task store directory is unavailable: {error}"
+                    ));
+                    app.handle().exit(1);
+                    return Ok(());
+                }
+            };
             let mut supervisor = SidecarSupervisor::default();
             if let Err(error) = supervisor.start(
                 &SidecarPaths::from_resource_dir(&resource_dir),
-                &SidecarLaunchConfig::default(),
+                &SidecarLaunchConfig {
+                    task_store_path: Some(task_store_path),
+                    ..SidecarLaunchConfig::default()
+                },
             ) {
                 show_startup_failure(&error.safe_startup_reason());
                 app.handle().exit(1);

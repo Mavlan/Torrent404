@@ -81,12 +81,14 @@ export class DownloadService {
   #manager;
   #ensureDirectory;
   #createTaskId;
+  #flushPersistence;
 
   constructor(manager, options = {}) {
     this.#manager = manager;
     this.#ensureDirectory = options.ensureDirectory ?? ensureDownloadDirectory;
     this.#createTaskId = options.createTaskId
       ?? (() => `download-${randomBytes(16).toString("hex")}`);
+    this.#flushPersistence = options.flushPersistence ?? (async () => undefined);
   }
 
   async add(input) {
@@ -147,7 +149,7 @@ export class DownloadService {
   }
 
   resume(input) {
-    return this.#changeState(input, "resume", ["paused"]);
+    return this.#changeStateAsync(input, "resume", ["paused"]);
   }
 
   startSeeding(input) {
@@ -280,6 +282,7 @@ export class DownloadService {
   }
 
   async shutdown() {
+    await this.#flushPersistence();
     await this.#manager.destroy();
   }
 }

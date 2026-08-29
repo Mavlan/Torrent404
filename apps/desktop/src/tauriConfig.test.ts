@@ -9,6 +9,7 @@ describe("Tauri Windows bundle configuration", () => {
     expect(desktopTestInclude).toEqual(["src/**/*.test.{ts,tsx}"]);
     expect(desktopPackage.scripts.test).toContain("node --test src-tauri/sidecar/search-service.test.mjs");
     expect(desktopPackage.scripts.test).toContain("src-tauri/sidecar/download-service.test.mjs");
+    expect(desktopPackage.scripts.test).toContain("src-tauri/sidecar/download-task-store.test.mjs");
   });
 
   it("uses a Chinese WiX locale for the Chinese product metadata", () => {
@@ -27,6 +28,7 @@ describe("Tauri Windows bundle configuration", () => {
       "sidecar/node.exe": "sidecar/node.exe",
       "sidecar/bootstrap.mjs": "sidecar/bootstrap.mjs",
       "sidecar/download-service.mjs": "sidecar/download-service.mjs",
+      "sidecar/download-task-store.mjs": "sidecar/download-task-store.mjs",
       "sidecar/search-service.mjs": "sidecar/search-service.mjs",
       "sidecar/core/": "sidecar/core/",
       "sidecar/node_modules/": "sidecar/node_modules/",

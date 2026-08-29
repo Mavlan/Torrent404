@@ -9,6 +9,8 @@ export type {
 export { DuplicateTorrentError, TorrentManager } from "./TorrentManager";
 export type {
   AddDownloadRequest,
+  PersistedDownloadTask,
   RemoveDownloadOptions,
+  TorrentManagerOptions,
 } from "./TorrentManager";
 export { WebTorrentAdapter, type WebTorrentAdapterOptions } from "./WebTorrentAdapter";

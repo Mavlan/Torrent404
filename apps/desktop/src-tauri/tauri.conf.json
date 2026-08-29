@@ -36,6 +36,7 @@
       "sidecar/node.exe": "sidecar/node.exe",
       "sidecar/bootstrap.mjs": "sidecar/bootstrap.mjs",
       "sidecar/download-service.mjs": "sidecar/download-service.mjs",
+      "sidecar/download-task-store.mjs": "sidecar/download-task-store.mjs",
       "sidecar/search-service.mjs": "sidecar/search-service.mjs",
       "sidecar/core/": "sidecar/core/",
       "sidecar/node_modules/": "sidecar/node_modules/"
