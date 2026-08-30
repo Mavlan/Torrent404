@@ -14,17 +14,15 @@
   <a href="SECURITY.md">安全</a> ·
   <a href="CONTRIBUTING.md">贡献</a>
 </p>
-
-
 <p align="center">
-  <img alt="版本 0.1.0" src="https://img.shields.io/badge/version-0.1.0-c8f36a?style=flat-square&labelColor=07110f">
+  <a href="https://github.com/Mavlan/Torrent404/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Mavlan/Torrent404/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/Mavlan/Torrent404/releases/tag/v0.1.0"><img alt="版本 0.1.0" src="https://img.shields.io/badge/version-0.1.0-c8f36a?style=flat-square&labelColor=07110f"></a>
   <img alt="Windows x64" src="https://img.shields.io/badge/Windows-x64-c8f36a?style=flat-square&labelColor=07110f">
   <img alt="Tauri 2" src="https://img.shields.io/badge/desktop-Tauri%202-c8f36a?style=flat-square&labelColor=07110f">
   <img alt="本地优先" src="https://img.shields.io/badge/architecture-local--first-c8f36a?style=flat-square&labelColor=07110f">
   <img alt="内置 Node 24.20.0" src="https://img.shields.io/badge/bundled%20Node-24.20.0-c8f36a?style=flat-square&labelColor=07110f">
-  <img alt="MIT 许可证" src="https://img.shields.io/badge/license-MIT-c8f36a?style=flat-square&labelColor=07110f">
+  <a href="LICENSE"><img alt="MIT 许可证" src="https://img.shields.io/badge/license-MIT-c8f36a?style=flat-square&labelColor=07110f"></a>
 </p>
-
 > [!IMPORTANT]
 > Torrent404 的部分实现建立在 baairon / bairon.dev 的开源项目 [TorLink](https://github.com/baairon/torlink) 之上，并使用、修改了 TorLink 以 MIT 许可证发布的部分代码。Torrent404 是独立维护的下游项目，不是 TorLink 官方版本，也不代表 TorLink 对本项目的认可或合作关系。
 

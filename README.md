@@ -16,12 +16,13 @@
 </p>
 
 <p align="center">
-  <img alt="Version 0.1.0" src="https://img.shields.io/badge/version-0.1.0-c8f36a?style=flat-square&labelColor=07110f">
+  <a href="https://github.com/Mavlan/Torrent404/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Mavlan/Torrent404/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/Mavlan/Torrent404/releases/tag/v0.1.0"><img alt="Version 0.1.0" src="https://img.shields.io/badge/version-0.1.0-c8f36a?style=flat-square&labelColor=07110f"></a>
   <img alt="Windows x64" src="https://img.shields.io/badge/Windows-x64-c8f36a?style=flat-square&labelColor=07110f">
   <img alt="Tauri 2" src="https://img.shields.io/badge/desktop-Tauri%202-c8f36a?style=flat-square&labelColor=07110f">
   <img alt="Local-first" src="https://img.shields.io/badge/architecture-local--first-c8f36a?style=flat-square&labelColor=07110f">
   <img alt="Bundled Node 24.20.0" src="https://img.shields.io/badge/bundled%20Node-24.20.0-c8f36a?style=flat-square&labelColor=07110f">
-  <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-c8f36a?style=flat-square&labelColor=07110f">
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-c8f36a?style=flat-square&labelColor=07110f"></a>
 </p>
 
 > [!IMPORTANT]
