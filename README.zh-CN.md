@@ -23,6 +23,7 @@
   <img alt="内置 Node 24.20.0" src="https://img.shields.io/badge/bundled%20Node-24.20.0-c8f36a?style=flat-square&labelColor=07110f">
   <a href="LICENSE"><img alt="MIT 许可证" src="https://img.shields.io/badge/license-MIT-c8f36a?style=flat-square&labelColor=07110f"></a>
 </p>
+
 > [!IMPORTANT]
 > Torrent404 的部分实现建立在 baairon / bairon.dev 的开源项目 [TorLink](https://github.com/baairon/torlink) 之上，并使用、修改了 TorLink 以 MIT 许可证发布的部分代码。Torrent404 是独立维护的下游项目，不是 TorLink 官方版本，也不代表 TorLink 对本项目的认可或合作关系。
 
