@@ -140,6 +140,19 @@ test("creates a download task through the manager with the selected directory", 
   });
 });
 
+test("passes unique magnet trackers to the manager in their original order", async () => {
+  const firstTracker = "udp://tracker.example:1337/announce";
+  const privateTracker = "https://private.example/announce?passkey=abc%2F123&event=started";
+  const magnet = `${MAGNET}&tr=${encodeURIComponent(firstTracker)}`
+    + `&tr=${encodeURIComponent(privateTracker)}`
+    + `&tr=${encodeURIComponent(firstTracker)}&tr=`;
+  const { manager, service: downloads } = service();
+
+  await downloads.add({ magnet, downloadDir: "C:\\Downloads\\Torrent404" });
+
+  assert.deepEqual(manager.requests[0].announce, [firstTracker, privateTracker]);
+});
+
 test("returns structured invalid magnet and directory errors", async () => {
   const invalid = service().service;
   await assert.rejects(

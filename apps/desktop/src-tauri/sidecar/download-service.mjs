@@ -32,7 +32,7 @@ function decodeBase32InfoHash(value) {
   return bytes.length === 20 ? Buffer.from(bytes).toString("hex") : undefined;
 }
 
-export function parseMagnetInfoHash(value) {
+function parseMagnet(value) {
   if (typeof value !== "string" || value.length > 8_192) return undefined;
   let magnet;
   try {
@@ -47,9 +47,21 @@ export function parseMagnetInfoHash(value) {
     .find((topic) => topic.toLowerCase().startsWith("urn:btih:"));
   if (!exactTopic) return undefined;
   const rawInfoHash = exactTopic.slice("urn:btih:".length);
-  if (HEX_INFO_HASH.test(rawInfoHash)) return rawInfoHash.toLowerCase();
-  if (BASE32_INFO_HASH.test(rawInfoHash)) return decodeBase32InfoHash(rawInfoHash);
-  return undefined;
+  const infoHash = HEX_INFO_HASH.test(rawInfoHash)
+    ? rawInfoHash.toLowerCase()
+    : BASE32_INFO_HASH.test(rawInfoHash)
+      ? decodeBase32InfoHash(rawInfoHash)
+      : undefined;
+  if (!infoHash) return undefined;
+
+  const announce = [...new Set(
+    magnet.searchParams.getAll("tr").filter((tracker) => tracker.trim().length > 0),
+  )];
+  return { infoHash, announce };
+}
+
+export function parseMagnetInfoHash(value) {
+  return parseMagnet(value)?.infoHash;
 }
 
 async function ensureDownloadDirectory(downloadDir) {
@@ -93,10 +105,11 @@ export class DownloadService {
 
   async add(input) {
     const magnet = typeof input?.magnet === "string" ? input.magnet.trim() : "";
-    const infoHash = parseMagnetInfoHash(magnet);
-    if (!infoHash) {
+    const parsedMagnet = parseMagnet(magnet);
+    if (!parsedMagnet) {
       throw new DownloadCommandError("invalid_magnet", "Magnet URI is invalid", 400);
     }
+    const { infoHash } = parsedMagnet;
     const downloadDir = typeof input?.downloadDir === "string"
       ? input.downloadDir.trim()
       : "";
@@ -117,6 +130,7 @@ export class DownloadService {
         savePath: downloadDir,
         source: magnet,
         total: taskTotal(input?.total),
+        ...(parsedMagnet.announce.length > 0 ? { announce: parsedMagnet.announce } : {}),
       });
       if (task.status === "error") {
         await this.#manager.remove(task.id).catch(() => false);

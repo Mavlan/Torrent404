@@ -38,10 +38,12 @@ class FakeTorrent extends EventEmitter {
 
 class FakeClient extends EventEmitter {
   readonly torrents: FakeTorrent[] = [];
+  readonly addCalls: Array<{ source: unknown; options: unknown }> = [];
   torrentPort = 51413;
   destroyed = false;
 
-  add(): FakeTorrent {
+  add(source: unknown, options: unknown): FakeTorrent {
+    this.addCalls.push({ source, options });
     const torrent = new FakeTorrent();
     this.torrents.push(torrent);
     return torrent;
@@ -128,6 +130,27 @@ describe("WebTorrentAdapter", () => {
     });
 
     expect(optionsSeen).toEqual([expect.objectContaining({ tracker: false })]);
+  });
+
+  it("passes request announce trackers to client.add", async () => {
+    const client = new FakeClient();
+    const adapter = new TestAdapter({}, () => client as never, vi.fn());
+    const announce = [
+      "udp://tracker.example:1337/announce",
+      "https://private.example/announce?passkey=abc%2F123",
+    ];
+
+    await adapter.add({
+      id: "task-1",
+      source: Uint8Array.from([1, 2, 3]),
+      path: "C:\\downloads",
+      announce,
+    });
+
+    expect(client.addCalls).toEqual([{
+      source: Uint8Array.from([1, 2, 3]),
+      options: { path: "C:\\downloads", announce },
+    }]);
   });
 
   it("owns pause, resume, remove, and complete shutdown", async () => {

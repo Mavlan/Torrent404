@@ -333,6 +333,39 @@ describe("TorrentManager", () => {
     await vi.waitFor(() => expect(resumed.get("task-1")?.status).toBe("completed"));
   });
 
+  it("persists explicit announce trackers through metadata and torrent-file resume", async () => {
+    const announce = [
+      "udp://tracker.example:1337/announce",
+      "https://private.example/announce?passkey=abc%2F123",
+    ];
+    let persisted: readonly PersistedDownloadTask[] = [];
+    const firstEngine = new FakeTorrentEngine();
+    const first = new TorrentManager(firstEngine, {
+      onPersistenceChange: (tasks) => { persisted = tasks; },
+    });
+    await first.add({ ...addRequest(), announce });
+    firstEngine.metadata("task-1", {
+      name: "Metadata title",
+      infoHash: HASH,
+      magnetUri: `magnet:?xt=urn:btih:${HASH}&dn=Metadata%20title`,
+      length: 200,
+      path: "D:\\Payloads",
+      files: [],
+      torrentFile: Uint8Array.from([1, 2, 3]),
+    });
+
+    expect(persisted[0]?.announce).toEqual(announce);
+    expect(persisted[0]?.torrentFileBase64).toBe("AQID");
+
+    const resumedEngine = new FakeTorrentEngine();
+    const resumed = new TorrentManager(resumedEngine);
+    resumed.restore(persisted);
+    await expect(resumed.resume("task-1")).resolves.toBe(true);
+    const engineRequest = resumedEngine.requests.get("task-1");
+    expect(engineRequest?.source).toEqual(Uint8Array.from([1, 2, 3]));
+    expect(engineRequest?.announce).toEqual(announce);
+  });
+
   it("restores completed and seeding records offline and removes them durably", async () => {
     const completedRecord: PersistedDownloadTask = {
       id: "task-1",
