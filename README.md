@@ -7,6 +7,7 @@
 <p align="center"><strong>A local-first, multi-source BitTorrent search and download desktop app for Windows.</strong></p>
 
 <p align="center">
+  <a href="https://torrent.try404.com/">Project website</a> ·
   <a href="README.zh-CN.md">简体中文</a> ·
   <a href="#install-on-windows">Install</a> ·
   <a href="docs/ARCHITECTURE.md">Architecture</a> ·
@@ -60,15 +61,9 @@ The UI and IPC handlers never import WebTorrent directly. State transitions are 
 
 ## Product tour
 
-| Area | What you can do |
-| --- | --- |
-| Search | Search by keyword and category, inspect source health, or paste a Magnet link directly |
-| Downloading | Track live progress and pause, resume, or remove active tasks |
-| Completed | Keep completed records offline and explicitly start or stop seeding |
-| Settings | Choose the language and default download folder, and enable or disable sources |
-| About | Review version, upstream attribution, third-party credits, and privacy boundaries |
+![Torrent404 product tour — search, downloads, settings, and open-source attribution](docs/screenshots/product-tour-en.webp)
 
-The repository intentionally does not ship stale or fabricated UI captures. Release screenshots should be captured from the matching tagged build.
+The screenshots above come from the final v0.1.0 Windows build and show the actual desktop interface.
 
 ## Install on Windows
 

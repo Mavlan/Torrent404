@@ -7,12 +7,14 @@
 <p align="center"><strong>本地优先、聚合多来源的 Windows BitTorrent 搜索与下载桌面客户端。</strong></p>
 
 <p align="center">
+  <a href="https://torrent.try404.com/">项目主页</a> ·
   <a href="README.md">English</a> ·
   <a href="#windows-安装">安装</a> ·
   <a href="docs/ARCHITECTURE.md">架构</a> ·
   <a href="SECURITY.md">安全</a> ·
   <a href="CONTRIBUTING.md">贡献</a>
 </p>
+
 
 <p align="center">
   <img alt="版本 0.1.0" src="https://img.shields.io/badge/version-0.1.0-c8f36a?style=flat-square&labelColor=07110f">
@@ -60,15 +62,9 @@ UI 与 IPC handler 不直接导入 WebTorrent。状态转换由 `DownloadTaskMod
 
 ## 产品导览
 
-| 区域 | 可以做什么 |
-| --- | --- |
-| 搜索 | 按关键词与分类检索、查看来源状态，或直接粘贴 Magnet 链接 |
-| 下载中 | 查看实时进度，暂停、继续或移除活动任务 |
-| 已完成 | 离线保留完成记录，并主动开始或停止做种 |
-| 设置 | 切换语言与搜索来源，选择默认下载目录 |
-| 关于 | 查看版本、上游归属、第三方致谢与隐私边界 |
+![Torrent404 产品导览——搜索、下载、设置与开源致谢](docs/screenshots/product-tour-zh-CN.webp)
 
-仓库不放置过期或虚构的界面截图；发布截图应从对应 tag 的实际构建中获取。
+以上截图来自最终 v0.1.0 Windows 构建，展示的是 Torrent404 的真实桌面界面。
 
 ## Windows 安装
 
