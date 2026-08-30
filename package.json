@@ -1,6 +1,6 @@
 {
   "name": "torlink-desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Torrent404：中文优先的开源 BitTorrent 搜索与下载桌面客户端",
   "type": "module",

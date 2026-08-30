@@ -17,7 +17,7 @@
 
 <p align="center">
   <a href="https://github.com/Mavlan/Torrent404/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Mavlan/Torrent404/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-  <a href="https://github.com/Mavlan/Torrent404/releases/tag/v0.1.0"><img alt="Version 0.1.0" src="https://img.shields.io/badge/version-0.1.0-c8f36a?style=flat-square&labelColor=07110f"></a>
+  <a href="https://github.com/Mavlan/Torrent404/releases/tag/v0.1.1"><img alt="Version 0.1.1" src="https://img.shields.io/badge/version-0.1.1-c8f36a?style=flat-square&labelColor=07110f"></a>
   <img alt="Windows x64" src="https://img.shields.io/badge/Windows-x64-c8f36a?style=flat-square&labelColor=07110f">
   <img alt="Tauri 2" src="https://img.shields.io/badge/desktop-Tauri%202-c8f36a?style=flat-square&labelColor=07110f">
   <img alt="Local-first" src="https://img.shields.io/badge/architecture-local--first-c8f36a?style=flat-square&labelColor=07110f">
@@ -32,7 +32,7 @@
 
 Torrent404 brings discovery and downloading into one focused Windows application. Searches fan out to enabled providers, results are normalized and deduplicated by info hash, and downloads remain under a local desktop-controlled Core instead of a hosted proxy service.
 
-The v0.1.0 release is deliberately narrow: searchable sources, direct Magnet input, reliable task controls, restart recovery, and explicit opt-in seeding.
+The v0.1.1 release is deliberately narrow: searchable sources, direct Magnet input, reliable task controls, restart recovery, and explicit opt-in seeding.
 
 ## What it does
 
@@ -68,14 +68,14 @@ The screenshots above come from the final v0.1.0 Windows build and show the actu
 
 ## Install on Windows
 
-Download a v0.1.0 artifact from [GitHub Releases](../../releases):
+Download a v0.1.1 artifact from [GitHub Releases](../../releases):
 
-- `Torrent404_0.1.0_x64-setup.exe` — NSIS installer
-- `Torrent404_0.1.0_x64_zh-CN.msi` — zh-CN MSI installer
+- `Torrent404_0.1.1_x64-setup.exe` — NSIS installer
+- `Torrent404_0.1.1_x64_zh-CN.msi` — zh-CN MSI installer
 
 The default install directory is `%LOCALAPPDATA%\Torrent404\`, and the application executable is `Torrent404.exe`. The release bundles Node.js `v24.20.0` and the complete sidecar production dependency tree; users do not need to install Node.js, Rust, or Git.
 
-v0.1.0 installers are not code-signed. Windows SmartScreen may therefore show an unknown-publisher warning; verify the artifact source before continuing.
+v0.1.1 installers are not code-signed. Windows SmartScreen may therefore show an unknown-publisher warning; verify the artifact source before continuing.
 
 ## Download and seeding behavior
 
@@ -153,7 +153,7 @@ Tauri 2 · Rust · React 19 · TypeScript 7 · Vite 8 · Node.js 24.20.0 · WebT
 
 ## Project boundaries
 
-Torrent404 v0.1.0 does not include a hosted search proxy, anonymity layer, automatic seeding, ratio rules, torrent creation/export, metadata/poster services, or a provider plugin SDK. The current release target is Windows x64.
+Torrent404 v0.1.1 does not include a hosted search proxy, anonymity layer, automatic seeding, ratio rules, torrent creation/export, metadata/poster services, or a provider plugin SDK. The current release target is Windows x64.
 
 ## Upstream and attribution
 

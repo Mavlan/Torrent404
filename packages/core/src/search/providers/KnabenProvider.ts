@@ -162,7 +162,7 @@ export class KnabenProvider implements SearchProvider {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
-          "User-Agent": "Torrent404/0.1.0",
+          "User-Agent": "Torrent404/0.1.1",
         },
         body: JSON.stringify({
           search_type: "100%",

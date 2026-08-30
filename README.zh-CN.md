@@ -16,7 +16,7 @@
 </p>
 <p align="center">
   <a href="https://github.com/Mavlan/Torrent404/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Mavlan/Torrent404/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-  <a href="https://github.com/Mavlan/Torrent404/releases/tag/v0.1.0"><img alt="版本 0.1.0" src="https://img.shields.io/badge/version-0.1.0-c8f36a?style=flat-square&labelColor=07110f"></a>
+  <a href="https://github.com/Mavlan/Torrent404/releases/tag/v0.1.1"><img alt="版本 0.1.1" src="https://img.shields.io/badge/version-0.1.1-c8f36a?style=flat-square&labelColor=07110f"></a>
   <img alt="Windows x64" src="https://img.shields.io/badge/Windows-x64-c8f36a?style=flat-square&labelColor=07110f">
   <img alt="Tauri 2" src="https://img.shields.io/badge/desktop-Tauri%202-c8f36a?style=flat-square&labelColor=07110f">
   <img alt="本地优先" src="https://img.shields.io/badge/architecture-local--first-c8f36a?style=flat-square&labelColor=07110f">
@@ -31,7 +31,7 @@
 
 Torrent404 把资源发现和下载收进一个专注的 Windows 应用。搜索请求会并行发往用户启用的来源，结果按 info hash 规范化并去重；下载由本机桌面 Core 管理，不经过项目运营的中央代理服务。
 
-v0.1.0 有意保持克制：提供多来源搜索、Magnet 直接添加、可靠的任务控制、重启恢复，以及必须由用户主动开启的做种。
+v0.1.1 有意保持克制：提供多来源搜索、Magnet 直接添加、可靠的任务控制、重启恢复，以及必须由用户主动开启的做种。
 
 ## 主要能力
 
@@ -67,14 +67,14 @@ UI 与 IPC handler 不直接导入 WebTorrent。状态转换由 `DownloadTaskMod
 
 ## Windows 安装
 
-从 [GitHub Releases](../../releases) 下载 v0.1.0 安装包：
+从 [GitHub Releases](../../releases) 下载 v0.1.1 安装包：
 
-- `Torrent404_0.1.0_x64-setup.exe` — NSIS 安装包
-- `Torrent404_0.1.0_x64_zh-CN.msi` — zh-CN MSI 安装包
+- `Torrent404_0.1.1_x64-setup.exe` — NSIS 安装包
+- `Torrent404_0.1.1_x64_zh-CN.msi` — zh-CN MSI 安装包
 
 默认安装目录为 `%LOCALAPPDATA%\Torrent404\`，应用程序为 `Torrent404.exe`。发行包已包含 Node.js `v24.20.0` 与 sidecar 的完整 production 依赖，普通用户无需安装 Node.js、Rust 或 Git。
 
-v0.1.0 安装包尚未进行代码签名，因此 Windows SmartScreen 可能显示“未知发布者”提示。继续前请确认安装包来源。
+v0.1.1 安装包尚未进行代码签名，因此 Windows SmartScreen 可能显示“未知发布者”提示。继续前请确认安装包来源。
 
 ## 下载与做种策略
 
@@ -152,7 +152,7 @@ Tauri 2 · Rust · React 19 · TypeScript 7 · Vite 8 · Node.js 24.20.0 · WebT
 
 ## 项目边界
 
-Torrent404 v0.1.0 不包含托管式搜索代理、匿名网络层、自动做种、分享率规则、Torrent 创建/导出、海报元数据服务或 Provider 插件 SDK。当前发行目标是 Windows x64。
+Torrent404 v0.1.1 不包含托管式搜索代理、匿名网络层、自动做种、分享率规则、Torrent 创建/导出、海报元数据服务或 Provider 插件 SDK。当前发行目标是 Windows x64。
 
 ## 上游项目与致谢
 

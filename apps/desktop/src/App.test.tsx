@@ -53,7 +53,7 @@ describe("desktop shell", () => {
   it("renders human-readable category counts from provider descriptors", async () => {
     render(<App searchClient={shellClient()} downloadClient={shellDownloadClient()} />);
     expect(screen.getByText("Torrent404")).toBeInTheDocument();
-    expect(screen.getByText("v0.1.0 · RC")).toBeInTheDocument();
+    expect(screen.getByText("v0.1.1 · RC")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /从一个入口/ })).toBeInTheDocument();
     expect(screen.getByText("搜索电影、剧集、动漫、游戏和其他 Torrent 资源")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("搜索资源，或粘贴 Magnet 链接直接下载")).toBeInTheDocument();
@@ -322,7 +322,7 @@ it("marks startup-restored paused tasks as pending verification until resume", a
     expect(screen.getByText("bairon / bairon.dev")).toBeInTheDocument();
     expect(screen.getByText("https://github.com/baairon/torlink")).toBeInTheDocument();
     expect(screen.getByText("MIT License")).toBeInTheDocument();
-    expect(screen.getByText("0.1.0")).toBeInTheDocument();
+    expect(screen.getByText("0.1.1")).toBeInTheDocument();
     expect(screen.getByText("WebTorrent")).toBeInTheDocument();
   });
 

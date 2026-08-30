@@ -657,7 +657,7 @@ if (active) {
           <Icon name="shield" />
           <div><strong>{t("status.localOnly")}</strong><span>{t("status.localOnlyBody")}</span></div>
         </div>
-        <p className="version-label">v0.1.0 · RC</p>
+        <p className="version-label">v0.1.1 · RC</p>
       </aside>
 
       <main className="workspace">
@@ -957,7 +957,7 @@ if (active) {
                   <div className="license-row"><span>{t("about.upstreamAuthorLabel")}</span><b>{t("about.upstreamAuthorValue")}</b></div>
                   <div className="license-row"><span>{t("about.upstreamLabel")}</span><b>{t("about.upstreamValue")}</b></div>
                   <div className="license-row"><span>{t("about.upstreamLicenseLabel")}</span><b>{t("about.upstreamLicenseValue")}</b></div>
-                  <div className="license-row"><span>{t("about.versionLabel")}</span><b>0.1.0</b></div>
+                  <div className="license-row"><span>{t("about.versionLabel")}</span><b>0.1.1</b></div>
                   <div className="license-row"><span>WebTorrent</span><b>MIT</b></div>
                 </section>
               </div>
