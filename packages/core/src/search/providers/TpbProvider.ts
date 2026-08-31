@@ -108,7 +108,7 @@ export class TpbProvider implements SearchProvider {
     url.searchParams.set("q", query);
     url.searchParams.set("cat", categoryId);
     const response = await this.#fetch(url, {
-      headers: { Accept: "application/json", "User-Agent": "Torrent404/0.1.1" },
+      headers: { Accept: "application/json", "User-Agent": "Torrent404/0.2.0" },
       signal,
     });
     if (!response.ok) throw new Error(`TPB returned HTTP ${response.status}`);

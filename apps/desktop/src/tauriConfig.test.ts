@@ -15,7 +15,7 @@ describe("Tauri Windows bundle configuration", () => {
   it("uses a Chinese WiX locale for the Chinese product metadata", () => {
     expect(config.productName).toBe("Torrent404");
     expect(config.mainBinaryName).toBe("Torrent404");
-    expect(config.version).toBe("0.1.1");
+    expect(config.version).toBe("0.2.0");
     expect(config.identifier).toBe("com.try404.torrent404");
     expect(config.app.windows[0]?.title).toBe("Torrent404");
     expect(config.bundle.shortDescription).toContain("Torrent404");

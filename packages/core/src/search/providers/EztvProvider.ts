@@ -109,7 +109,7 @@ export class EztvProvider implements SearchProvider {
     url.searchParams.set("limit", "100");
     url.searchParams.set("page", "1");
     const response = await this.#fetch(url, {
-      headers: { Accept: "application/json", "User-Agent": "Torrent404/0.1.1" },
+      headers: { Accept: "application/json", "User-Agent": "Torrent404/0.2.0" },
       signal,
     });
     if (!response.ok) throw new Error(`EZTV returned HTTP ${response.status}`);

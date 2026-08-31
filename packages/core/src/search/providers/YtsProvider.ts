@@ -116,7 +116,7 @@ export class YtsProvider implements SearchProvider {
         const response = await this.#fetch(url, {
           headers: {
             Accept: "application/json",
-            "User-Agent": "Torrent404/0.1.1",
+            "User-Agent": "Torrent404/0.2.0",
           },
           signal,
         });
