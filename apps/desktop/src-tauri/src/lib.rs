@@ -144,6 +144,33 @@ fn download_add(
         .map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+fn download_add_torrent(
+    path: String,
+    sidecar: State<'_, Mutex<SidecarSupervisor>>,
+    directory: State<'_, DownloadDirectory>,
+) -> Result<Value, String> {
+    let download_path = match directory.path_for_new_download() {
+        Ok(path) => path,
+        Err(_) => {
+            return Ok(json!({
+                "ok": false,
+                "protocolVersion": 1,
+                "error": {
+                    "code": "download_directory_unavailable",
+                    "message": "The configured download directory is unavailable"
+                }
+            }));
+        }
+    };
+    let supervisor = sidecar
+        .lock()
+        .map_err(|_| "sidecar supervisor is unavailable".to_owned())?;
+    supervisor
+        .add_torrent_file(std::path::Path::new(&path), &download_path)
+        .map_err(|error| error.to_string())
+}
+
 fn control_download(
     command: &'static str,
     task_id: String,
@@ -211,6 +238,7 @@ pub fn run() {
             download_directory,
             download_directory_set,
             download_add,
+            download_add_torrent,
             download_pause,
             download_resume,
             download_start_seeding,

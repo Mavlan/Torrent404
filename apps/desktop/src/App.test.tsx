@@ -225,7 +225,7 @@ it("marks startup-restored paused tasks as pending verification until resume", a
     expect(await screen.findByText("50.0%", {}, { timeout: 1_500 })).toBeInTheDocument();
     expect(screen.getByText("已暂停")).toBeInTheDocument();
     expect(screen.getAllByText("0 B/s")).toHaveLength(2);
-    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(1);
 
     await user.click(screen.getByRole("button", { name: "搜索" }));
     const { etaSeconds: _etaSeconds, ...withoutEta } = snapshot;
@@ -933,5 +933,46 @@ it("marks startup-restored paused tasks as pending verification until resume", a
     ));
     expect(screen.getByText("YTS")).toBeInTheDocument();
     expect(screen.getByText("Nyaa")).toBeInTheDocument();
+  });
+
+  it("imports a selected .torrent and labels only actual connections as Connected", async () => {
+    const importedTask: DownloadTask = {
+      id: "download-torrent-file",
+      infoHash: "abcdef0123456789abcdef0123456789abcdef01",
+      name: "fixture.bin",
+      status: "downloading",
+      progress: 0.25,
+      downloadSpeed: 1024,
+      uploadSpeed: 0,
+      downloaded: 1,
+      total: 4,
+      peers: 18,
+      savePath: "C:\\Users\\Tester\\Downloads\\Torrent404",
+    };
+    const downloads: DownloadClient = {
+      ...shellDownloadClient(),
+      list: vi.fn().mockResolvedValue({ tasks: [importedTask] }),
+      selectTorrent: vi.fn().mockResolvedValue({
+        ok: true,
+        protocolVersion: 1,
+        command: "download.add",
+        result: {
+          taskId: "download-torrent-file",
+          task: importedTask,
+        },
+      }),
+    };
+    const user = userEvent.setup();
+    render(<App searchClient={shellClient()} downloadClient={downloads} />);
+
+    await user.click(screen.getByRole("button", { name: "选择 .torrent 文件" }));
+
+    expect(downloads.selectTorrent).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("heading", { name: "fixture.bin" })).toBeInTheDocument();
+    expect(screen.getByText(".torrent 任务已创建，可在“下载中”查看。")).toBeInTheDocument();
+    expect(screen.getByText("Seeds")).toBeInTheDocument();
+    expect(screen.getByText("Peers")).toBeInTheDocument();
+    expect(screen.getByText("Connected")).toBeInTheDocument();
+    expect(screen.getAllByText("18")).toHaveLength(2);
   });
 });

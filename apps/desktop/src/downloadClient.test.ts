@@ -41,4 +41,28 @@ describe("desktop download directory client", () => {
 
     expect(mocks.invoke).not.toHaveBeenCalled();
   });
+
+  it("opens a native .torrent picker and sends only the selected local path", async () => {
+    mocks.open.mockResolvedValue("C:\\Fixtures\\legal.torrent");
+    mocks.invoke.mockResolvedValue({ ok: true, command: "download.add" });
+
+    await desktopDownloadClient.selectTorrent?.();
+
+    expect(mocks.open).toHaveBeenCalledWith({
+      directory: false,
+      multiple: false,
+      title: "Torrent404",
+      filters: [{ name: "Torrent", extensions: ["torrent"] }],
+    });
+    expect(mocks.invoke).toHaveBeenCalledWith("download_add_torrent", {
+      path: "C:\\Fixtures\\legal.torrent",
+    });
+  });
+
+  it("does not invoke Core when the .torrent picker is cancelled", async () => {
+    mocks.open.mockResolvedValue(null);
+
+    await expect(desktopDownloadClient.selectTorrent?.()).resolves.toBeNull();
+    expect(mocks.invoke).not.toHaveBeenCalled();
+  });
 });

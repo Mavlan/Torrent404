@@ -29,6 +29,7 @@ export type IpcErrorCode =
   | "duplicate_request_id"
   | "search_request_not_found"
   | "invalid_magnet"
+  | "invalid_torrent_file"
   | "duplicate_torrent"
   | "download_directory_unavailable"
   | "engine_add_failed"
@@ -70,13 +71,15 @@ export interface SearchCancelRequest extends IpcRequest {
   requestId: string;
 }
 
-export interface DownloadAddRequest extends IpcRequest {
+interface DownloadAddRequestBase extends IpcRequest {
   command: "download.add";
-  magnet: string;
-  name?: string;
-  total?: number;
   downloadDir: string;
 }
+
+export type DownloadAddRequest = DownloadAddRequestBase & (
+  | { magnet: string; name?: string; total?: number; torrentPath?: never }
+  | { torrentPath: string; magnet?: never; name?: never; total?: never }
+);
 
 export type DownloadControlCommand =
   | "download.pause"

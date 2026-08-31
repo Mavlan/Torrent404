@@ -164,6 +164,10 @@ nav { position: relative; z-index: 1; display: grid; gap: 4px; }
 .search-form button:disabled { border-color: var(--line-strong); background: var(--line); color: var(--faint); cursor: not-allowed; box-shadow: none; transform: none; }
 .setting-panel > button:disabled { opacity: .6; cursor: wait; box-shadow: none; transform: none; }
 .magnet-hint { margin: 8px 3px 0; color: var(--muted); font-size: var(--type-support); line-height: var(--leading-support); letter-spacing: .01em; }
+.torrent-import-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.torrent-import-row button { margin-top: 8px; padding: 6px 10px; border: 1px solid var(--line-bright); background: transparent; color: var(--text); font: 650 var(--type-caption)/1.3 "Bahnschrift", "Microsoft YaHei UI", sans-serif; letter-spacing: .04em; cursor: pointer; }
+.torrent-import-row button:hover:not(:disabled) { border-color: var(--signal); color: var(--signal); }
+.torrent-import-row button:disabled { opacity: .5; cursor: wait; }
 
 .source-panel { margin-top: 14px; min-height: 96px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface-2) 82%, transparent); }
 .source-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 9px 14px; border-bottom: 1px solid var(--line); }
@@ -223,7 +227,7 @@ nav { position: relative; z-index: 1; display: grid; gap: 4px; }
 .task-progress-heading strong { color: var(--signal); font: 600 var(--type-caption)/1.3 "Cascadia Mono", monospace; }
 .task-progress { height: 4px; margin-top: 7px; overflow: hidden; background: var(--line); }
 .task-progress i { display: block; height: 100%; background: var(--signal); transition: width .3s ease; }
-.task-stats { display: grid; grid-template-columns: repeat(5, minmax(80px, auto)); gap: 16px; margin: 14px 0 0; }
+.task-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, auto)); gap: 16px; margin: 14px 0 0; }
 .task-stats dd { margin: 5px 0 0; color: var(--text); font: 500 var(--type-caption)/1.4 "Cascadia Mono", monospace; }
 .download-task p.task-error { margin-top: 12px; color: #e79693; }
 .task-actions { display: grid; justify-items: end; gap: 12px; }
@@ -312,6 +316,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--signal); ou
   .search-form kbd { display: none; }
   .search-form button { min-width: 52px; font-size: 0; }
   .search-form button span { margin: 0; font-size: 18px; }
+  .torrent-import-row { align-items: flex-start; flex-direction: column; gap: 0; }
   .search-empty { grid-template-columns: 1fr; }
   .search-result { grid-template-columns: 1fr; }
   .search-result dl { justify-content: flex-start; }

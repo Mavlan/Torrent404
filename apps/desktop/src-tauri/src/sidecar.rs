@@ -412,6 +412,38 @@ impl SidecarSupervisor {
         Ok(response.body)
     }
 
+    pub(crate) fn add_torrent_file(
+        &self,
+        torrent_path: &Path,
+        download_dir: &Path,
+    ) -> Result<Value, SidecarError> {
+        let response = self.raw_command(
+            "download.add",
+            json!({
+                "torrentPath": torrent_path,
+                "downloadDir": download_dir,
+            }),
+        )?;
+        let protocol_version = response.body["protocolVersion"].as_u64();
+        if protocol_version != Some(u64::from(IPC_PROTOCOL_VERSION)) {
+            return Err(SidecarError::IpcProtocol);
+        }
+        let valid_success = response.status_code == 200
+            && response.body["ok"] == true
+            && response.body["command"] == "download.add"
+            && response.body["result"]["taskId"].is_string()
+            && response.body["result"]["task"].is_object();
+        let valid_error = response.status_code >= 400
+            && response.status_code < 600
+            && response.body["ok"] == false
+            && response.body["error"]["code"].is_string()
+            && response.body["error"]["message"].is_string();
+        if !valid_success && !valid_error {
+            return Err(SidecarError::IpcProtocol);
+        }
+        Ok(response.body)
+    }
+
     pub(crate) fn list_downloads(&self) -> Result<Value, SidecarError> {
         let result = self
             .command("download.list", json!({}))?
@@ -943,6 +975,18 @@ mod tests {
             .expect("invalid magnet should remain a structured IPC response");
         assert_eq!(invalid["ok"], false);
         assert_eq!(invalid["error"]["code"], "invalid_magnet");
+
+        let invalid_torrent = download_dir.join("not-a-torrent.txt");
+        std::fs::write(&invalid_torrent, b"not torrent data")
+            .expect("invalid torrent fixture should be written");
+        let invalid_torrent_response = supervisor
+            .add_torrent_file(&invalid_torrent, &download_dir)
+            .expect("invalid torrent should remain a structured IPC response");
+        assert_eq!(invalid_torrent_response["ok"], false);
+        assert_eq!(
+            invalid_torrent_response["error"]["code"],
+            "invalid_torrent_file"
+        );
 
         supervisor.stop().expect("sidecar should stop");
         let _ = std::fs::remove_dir_all(download_dir);

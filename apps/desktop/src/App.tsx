@@ -118,6 +118,7 @@ function taskStatusLabel(task: DownloadTask, t: Translator): string {
 function downloadErrorLabel(code: IpcErrorCode): MessageKey {
   const labels: Partial<Record<IpcErrorCode, MessageKey>> = {
     invalid_magnet: "error.invalidMagnet",
+    invalid_torrent_file: "error.invalidTorrentFile",
     duplicate_torrent: "error.duplicateTorrent",
     download_directory_unavailable: "error.downloadDirectoryUnavailable",
     engine_add_failed: "error.engineAddFailed",
@@ -190,6 +191,7 @@ function App({
   const [verificationPendingTaskIds, setVerificationPendingTaskIds] =
   useState<Set<string>>(new Set());
   const [addingMagnet, setAddingMagnet] = useState(false);
+  const [importingTorrent, setImportingTorrent] = useState(false);
   const [addingResultIds, setAddingResultIds] = useState<Set<string>>(new Set());
   const [controllingTaskIds, setControllingTaskIds] = useState<Set<string>>(new Set());
   const [downloadDirectory, setDownloadDirectory] = useState<string | null>(null);
@@ -502,6 +504,30 @@ if (active) {
     }
   };
 
+  const importTorrentFile = async () => {
+    if (importingTorrent || !downloadClient.selectTorrent) return;
+    cancelCurrentSearch();
+    setImportingTorrent(true);
+    setNotice(null);
+    try {
+      const response = await downloadClient.selectTorrent();
+      if (!response) return;
+      if (!response.ok) {
+        setNotice(downloadErrorLabel(response.error.code));
+        return;
+      }
+      setDownloadTasks((current) => current.some((task) => task.id === response.result.taskId)
+        ? current
+        : [...current, response.result.task]);
+      setPage("downloading");
+      setNotice("download.torrentAdded");
+    } catch {
+      setNotice("error.downloadUnavailable");
+    } finally {
+      setImportingTorrent(false);
+    }
+  };
+
   const controlDownload = async (
     task: DownloadTask,
     operation: "pause" | "resume" | "startSeeding" | "stopSeeding" | "remove",
@@ -713,7 +739,16 @@ if (active) {
                   <span aria-hidden="true">↗</span>
                 </button>
               </form>
-              <p className="magnet-hint">{t("search.magnetHint")}</p>
+              <div className="torrent-import-row">
+                <p className="magnet-hint">{t("search.magnetHint")}</p>
+                <button
+                  disabled={importingTorrent || !downloadClient.selectTorrent}
+                  onClick={() => void importTorrentFile()}
+                  type="button"
+                >
+                  {t(importingTorrent ? "search.torrentImporting" : "search.torrentImport")}
+                </button>
+              </div>
 
               <section className="source-panel" aria-label={t("search.sourcesTitle")}>
                 <header>
@@ -812,7 +847,9 @@ if (active) {
                           <div><dt>{t("downloads.downloadSpeed")}</dt><dd>{formatBytes(task.status === "paused" ? 0 : task.downloadSpeed)}/s</dd></div>
                           <div><dt>{t("downloads.uploadSpeed")}</dt><dd>{formatBytes(task.status === "paused" ? 0 : task.uploadSpeed)}/s</dd></div>
                           <div><dt>{t("downloads.eta")}</dt><dd>{task.status === "paused" ? "—" : formatEta(task.etaSeconds)}</dd></div>
-                          <div><dt>{t("downloads.peers")}</dt><dd>{task.peers ?? 0}</dd></div>
+                          <div><dt>{t("downloads.seeds")}</dt><dd>—</dd></div>
+                          <div><dt>{t("downloads.peers")}</dt><dd>—</dd></div>
+                          <div><dt>{t("downloads.connected")}</dt><dd>{task.peers ?? 0}</dd></div>
                         </dl>
                         {task.status === "error" ? <p className="task-error">{t("downloads.taskError")}</p> : null}
                       </div>
@@ -849,7 +886,9 @@ if (active) {
                         <dl className="task-stats">
                           <div><dt>{t("downloads.transferred")}</dt><dd>{formatBytes(task.downloaded)} / {formatBytes(task.total)}</dd></div>
                           <div><dt>{t("downloads.uploadSpeed")}</dt><dd>{formatBytes(task.status === "seeding" ? task.uploadSpeed : 0)}/s</dd></div>
-                          <div><dt>{t("downloads.peers")}</dt><dd>{task.status === "seeding" ? task.peers ?? 0 : 0}</dd></div>
+                          <div><dt>{t("downloads.seeds")}</dt><dd>—</dd></div>
+                          <div><dt>{t("downloads.peers")}</dt><dd>—</dd></div>
+                          <div><dt>{t("downloads.connected")}</dt><dd>{task.status === "seeding" ? task.peers ?? 0 : 0}</dd></div>
                         </dl>
                       </div>
                       <div className="task-actions">

@@ -23,6 +23,7 @@ export type DownloadListResult = DownloadListResponse["result"];
 
 export interface DownloadClient {
   add(input: DownloadAddInput): Promise<DownloadAddResult>;
+  selectTorrent?(): Promise<DownloadAddResult | null>;
   pause(taskId: string): Promise<DownloadControlResult>;
   resume(taskId: string): Promise<DownloadControlResult>;
   startSeeding(taskId: string): Promise<DownloadControlResult>;
@@ -35,6 +36,16 @@ export interface DownloadClient {
 
 export const desktopDownloadClient: DownloadClient = {
   add: ({ magnet, name, total }) => invoke("download_add", { magnet, name, total }),
+  selectTorrent: async () => {
+    const selected = await open({
+      directory: false,
+      multiple: false,
+      title: "Torrent404",
+      filters: [{ name: "Torrent", extensions: ["torrent"] }],
+    });
+    if (typeof selected !== "string") return null;
+    return invoke("download_add_torrent", { path: selected });
+  },
   pause: (taskId) => invoke("download_pause", { taskId }),
   resume: (taskId) => invoke("download_resume", { taskId }),
   startSeeding: (taskId) => invoke("download_start_seeding", { taskId }),

@@ -12,6 +12,10 @@ import {
 
 const HASH = "abcdef0123456789abcdef0123456789abcdef01";
 const MAGNET = `magnet:?xt=urn:btih:${HASH}&dn=Legal%20fixture`;
+const TORRENT_FIXTURE = Buffer.from(
+  "ZDg6YW5ub3VuY2UzMTp1ZHA6Ly90cmFja2VyLm9uZToxMzM3L2Fubm91bmNlMTM6YW5ub3VuY2UtbGlzdGxsMzE6dWRwOi8vdHJhY2tlci5vbmU6MTMzNy9hbm5vdW5jZWVsNDM6aHR0cHM6Ly90cmFja2VyLnR3by9hbm5vdW5jZT9wYXNza2V5PWFiYzEyM2VlNDppbmZvZDY6bGVuZ3RoaTRlNDpuYW1lMTE6Zml4dHVyZS5iaW4xMjpwaWVjZSBsZW5ndGhpMTYzODRlNjpwaWVjZXMyMDoBAQEBAQEBAQEBAQEBAQEBAQEBAWVl",
+  "base64",
+);
 
 class FakeManager {
   requests = [];
@@ -151,6 +155,53 @@ test("passes unique magnet trackers to the manager in their original order", asy
   await downloads.add({ magnet, downloadDir: "C:\\Downloads\\Torrent404" });
 
   assert.deepEqual(manager.requests[0].announce, [firstTracker, privateTracker]);
+});
+
+test("imports a local .torrent with its bytes, trackers, metadata, and resumable magnet", async () => {
+  const root = await mkdtemp(join(tmpdir(), "torrent404-import-"));
+  const torrentPath = join(root, "legal.torrent");
+  await writeFile(torrentPath, TORRENT_FIXTURE);
+  const { manager, service: downloads } = service();
+  try {
+    const result = await downloads.add({
+      torrentPath,
+      downloadDir: "C:\\Downloads\\Torrent404",
+    });
+    const request = manager.requests[0];
+
+    assert.equal(result.task.status, "downloading");
+    assert.equal(request.name, "fixture.bin");
+    assert.equal(request.total, 4);
+    assert.match(request.infoHash, /^[a-f\d]{40}$/);
+    assert.match(request.source, new RegExp(`^magnet:\\?xt=urn:btih:${request.infoHash}`));
+    assert.deepEqual(request.announce, [
+      "udp://tracker.one:1337/announce",
+      "https://tracker.two/announce?passkey=abc123",
+    ]);
+    assert.deepEqual(Buffer.from(request.torrentFile), TORRENT_FIXTURE);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rejects non-.torrent, unreadable, and malformed local torrent files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "torrent404-invalid-import-"));
+  const wrongExtension = join(root, "fixture.bin");
+  const malformed = join(root, "broken.torrent");
+  await writeFile(wrongExtension, TORRENT_FIXTURE);
+  await writeFile(malformed, "not bencoded torrent data");
+  const downloads = service().service;
+  try {
+    for (const torrentPath of [wrongExtension, malformed, join(root, "missing.torrent")]) {
+      await assert.rejects(
+        downloads.add({ torrentPath, downloadDir: "C:\\Downloads" }),
+        (error) => error instanceof DownloadCommandError
+          && error.code === "invalid_torrent_file",
+      );
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("returns structured invalid magnet and directory errors", async () => {

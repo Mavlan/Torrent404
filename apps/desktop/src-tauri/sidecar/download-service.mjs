@@ -1,9 +1,12 @@
 import { randomBytes } from "node:crypto";
-import { access, mkdir, stat } from "node:fs/promises";
+import { access, mkdir, readFile, stat } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
+import { extname } from "node:path";
+import parseTorrent, { toMagnetURI } from "parse-torrent";
 
 const HEX_INFO_HASH = /^[a-f\d]{40}$/i;
 const BASE32_INFO_HASH = /^[a-z2-7]{32}$/i;
+const MAX_TORRENT_FILE_BYTES = 8 * 1024 * 1024;
 
 export class DownloadCommandError extends Error {
   constructor(code, message, statusCode) {
@@ -89,6 +92,49 @@ function taskTotal(total) {
   return Number.isSafeInteger(total) && total >= 0 ? total : 0;
 }
 
+async function parseTorrentFile(torrentPath) {
+  if (
+    typeof torrentPath !== "string"
+    || torrentPath.trim().length === 0
+    || extname(torrentPath.trim()).toLowerCase() !== ".torrent"
+  ) {
+    throw new DownloadCommandError("invalid_torrent_file", "Torrent file is invalid", 400);
+  }
+
+  try {
+    const path = torrentPath.trim();
+    const metadata = await stat(path);
+    if (!metadata.isFile() || metadata.size === 0 || metadata.size > MAX_TORRENT_FILE_BYTES) {
+      throw new Error("Torrent file size is invalid");
+    }
+    const torrentFile = await readFile(path);
+    if (torrentFile.length === 0 || torrentFile.length > MAX_TORRENT_FILE_BYTES) {
+      throw new Error("Torrent file size changed while reading");
+    }
+    const parsed = await parseTorrent(torrentFile);
+    const infoHash = typeof parsed.infoHash === "string"
+      && HEX_INFO_HASH.test(parsed.infoHash)
+      ? parsed.infoHash.toLowerCase()
+      : undefined;
+    if (!infoHash) throw new Error("Torrent infohash is invalid");
+    const announce = [...new Set(
+      (Array.isArray(parsed.announce) ? parsed.announce : [])
+        .filter((tracker) => typeof tracker === "string" && tracker.trim().length > 0),
+    )];
+    return {
+      infoHash,
+      name: taskName(parsed.name, infoHash),
+      total: taskTotal(parsed.length),
+      source: toMagnetURI(parsed),
+      torrentFile: Uint8Array.from(torrentFile),
+      announce,
+    };
+  } catch (error) {
+    if (error instanceof DownloadCommandError) throw error;
+    throw new DownloadCommandError("invalid_torrent_file", "Torrent file is invalid", 400);
+  }
+}
+
 export class DownloadService {
   #manager;
   #ensureDirectory;
@@ -104,12 +150,15 @@ export class DownloadService {
   }
 
   async add(input) {
+    const torrentInput = input?.torrentPath === undefined
+      ? undefined
+      : await parseTorrentFile(input.torrentPath);
     const magnet = typeof input?.magnet === "string" ? input.magnet.trim() : "";
-    const parsedMagnet = parseMagnet(magnet);
-    if (!parsedMagnet) {
+    const parsedMagnet = torrentInput ? undefined : parseMagnet(magnet);
+    if (!torrentInput && !parsedMagnet) {
       throw new DownloadCommandError("invalid_magnet", "Magnet URI is invalid", 400);
     }
-    const { infoHash } = parsedMagnet;
+    const infoHash = torrentInput?.infoHash ?? parsedMagnet.infoHash;
     const downloadDir = typeof input?.downloadDir === "string"
       ? input.downloadDir.trim()
       : "";
@@ -126,11 +175,14 @@ export class DownloadService {
       const task = await this.#manager.add({
         id: this.#createTaskId(),
         infoHash,
-        name: taskName(input?.name, infoHash),
+        name: torrentInput?.name ?? taskName(input?.name, infoHash),
         savePath: downloadDir,
-        source: magnet,
-        total: taskTotal(input?.total),
-        ...(parsedMagnet.announce.length > 0 ? { announce: parsedMagnet.announce } : {}),
+        source: torrentInput?.source ?? magnet,
+        total: torrentInput?.total ?? taskTotal(input?.total),
+        ...((torrentInput?.announce ?? parsedMagnet?.announce)?.length
+          ? { announce: torrentInput?.announce ?? parsedMagnet.announce }
+          : {}),
+        ...(torrentInput ? { torrentFile: torrentInput.torrentFile } : {}),
       });
       if (task.status === "error") {
         await this.#manager.remove(task.id).catch(() => false);

@@ -137,16 +137,21 @@ for (const packageName of ["node-datachannel", "webtorrent"]) {
 await access(
   path.join(sidecarNodeModulesDirectory, "bittorrent-tracker", "package.json"),
 );
+await access(
+  path.join(sidecarNodeModulesDirectory, "parse-torrent", "package.json"),
+);
 await promisify(execFile)(
   destination,
   [
     "--input-type=module",
     "--eval",
-    `await import(${JSON.stringify(
+    `await Promise.all([import(${JSON.stringify(
       pathToFileURL(
         path.join(sidecarCoreDirectory, "torrent", "WebTorrentAdapter.js"),
       ).href,
-    )})`,
+    )}), import(${JSON.stringify(
+      pathToFileURL(path.join(sidecarDirectory, "download-service.mjs")).href,
+    )})])`,
   ],
   { cwd: sidecarDirectory, windowsHide: true },
 );
