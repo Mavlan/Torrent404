@@ -34,6 +34,8 @@ Torrent404 brings discovery and downloading into one focused Windows application
 
 The v0.2.0 release is deliberately narrow: searchable sources, direct Magnet and local `.torrent` input, reliable task controls, restart recovery, and explicit opt-in seeding.
 
+Local `.torrent` files can be imported directly using the desktop file picker.
+
 ## What it does
 
 | Search | Download |
